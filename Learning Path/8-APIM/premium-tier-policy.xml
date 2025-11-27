@@ -1,0 +1,39 @@
+<policies>
+    <inbound>
+        <base />
+        <!-- Rate limit: 500 calls per hour -->
+        <rate-limit calls="500" renewal-period="3600" />
+        
+        <!-- Quota: 10000 calls per day -->
+        <quota calls="10000" renewal-period="86400" />
+        
+        <set-backend-service base-url="https://conferencehub-demo-az204reinke.azurewebsites.net" />
+        
+        <set-header name="X-Subscription-Key" exists-action="override">
+            <value>@(context.Subscription.Key)</value>
+        </set-header>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <cors>
+            <allowed-origins>
+                <origin>*</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>PUT</method>
+                <method>DELETE</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>*</header>
+            </allowed-headers>
+        </cors>
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

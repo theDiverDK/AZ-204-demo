@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  webapp:
+    build:
+      context: ./ConferenceHub
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - CosmosDb__ConnectionString=${COSMOS_CONNECTION_STRING}
+      - CosmosDb__DatabaseName=ConferenceHubDB
+      - AzureStorage__ConnectionString=${STORAGE_CONNECTION_STRING}
+      - AzureFunctions__SendConfirmationUrl=http://functions:7071/api/SendConfirmation
+    depends_on:
+      - functions
+    networks:
+      - conferencehub-network
+
+  functions:
+    build:
+      context: ./ConferenceHub.Functions
+      dockerfile: Dockerfile
+    ports:
+      - "7071:7071"
+    environment:
+      - AzureWebJobsStorage=${STORAGE_CONNECTION_STRING}
+      - CosmosDbConnectionString=${COSMOS_CONNECTION_STRING}
+    networks:
+      - conferencehub-network
+
+networks:
+  conferencehub-network:
+    driver: bridge

@@ -1,0 +1,21 @@
+<policies>
+    <inbound>
+        <base />
+        <!-- Check cache for GET requests -->
+        <cache-lookup vary-by-developer="false" vary-by-developer-groups="false">
+            <vary-by-header>Accept</vary-by-header>
+            <vary-by-query-parameter>id</vary-by-query-parameter>
+        </cache-lookup>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <!-- Cache responses for 5 minutes -->
+        <cache-store duration="300" />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

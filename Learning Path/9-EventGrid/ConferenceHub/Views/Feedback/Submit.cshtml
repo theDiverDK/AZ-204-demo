@@ -1,0 +1,116 @@
+@model ConferenceHub.Models.SessionFeedback
+
+@{
+    ViewData["Title"] = "Submit Feedback";
+    var session = ViewBag.Session as ConferenceHub.Models.Session;
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="bi bi-star"></i> Submit Feedback</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5>@session.Title</h5>
+                        <p class="mb-0">
+                            <strong>Speaker:</strong> @session.Speaker<br />
+                            <strong>Date:</strong> @session.StartTime.ToString("MMM dd, yyyy h:mm tt")
+                        </p>
+                    </div>
+
+                    <form asp-action="Submit" method="post">
+                        <input type="hidden" asp-for="SessionId" value="@session.Id" />
+
+                        <div class="mb-4">
+                            <label class="form-label">How would you rate this session?</label>
+                            <div class="d-flex gap-2 justify-content-center mb-2">
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    var starValue = i;
+                                    <label class="star-rating">
+                                        <input type="radio" asp-for="Rating" value="@starValue" required />
+                                        <i class="bi bi-star-fill" style="font-size: 2rem; cursor: pointer;"></i>
+                                    </label>
+                                }
+                            </div>
+                            <small class="text-muted d-block text-center">1 = Poor, 5 = Excellent</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Comment" class="form-label">Comments (Optional)</label>
+                            <textarea asp-for="Comment" class="form-control" rows="5" 
+                                placeholder="Share your thoughts about this session..."></textarea>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" asp-for="IsRecommended" class="form-check-input" id="isRecommended" />
+                            <label class="form-check-label" for="isRecommended">
+                                I would recommend this session to others
+                            </label>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Tags (Select all that apply)</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input type="checkbox" name="Tags" value="Informative" class="form-check-input" id="tagInformative" />
+                                        <label class="form-check-label" for="tagInformative">Informative</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" name="Tags" value="Engaging" class="form-check-input" id="tagEngaging" />
+                                        <label class="form-check-label" for="tagEngaging">Engaging</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" name="Tags" value="Well-Organized" class="form-check-input" id="tagOrganized" />
+                                        <label class="form-check-label" for="tagOrganized">Well-Organized</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input type="checkbox" name="Tags" value="Technical-Depth" class="form-check-input" id="tagTechnical" />
+                                        <label class="form-check-label" for="tagTechnical">Technical Depth</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" name="Tags" value="Good-Examples" class="form-check-input" id="tagExamples" />
+                                        <label class="form-check-label" for="tagExamples">Good Examples</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" name="Tags" value="Practical" class="form-check-input" id="tagPractical" />
+                                        <label class="form-check-label" for="tagPractical">Practical</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a asp-controller="Sessions" asp-action="Details" asp-route-id="@session.Id" class="btn btn-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send"></i> Submit Feedback
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .star-rating input[type="radio"] {
+        display: none;
+    }
+    .star-rating i {
+        color: #ddd;
+        transition: color 0.2s;
+    }
+    .star-rating input[type="radio"]:checked ~ i,
+    .star-rating:hover i {
+        color: #ffc107;
+    }
+</style>
