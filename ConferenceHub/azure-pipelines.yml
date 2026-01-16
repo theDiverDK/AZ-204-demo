@@ -10,7 +10,7 @@ variables:
   appServicePlanName: 'plan-conferencehub'
   webAppName: 'app-conferencehub'
   appServicePlanSku: 'B1'
-  appRuntime: 'DOTNETCORE|8.0'
+  appRuntime: 'DOTNETCORE|10.0'
 
 stages:
   - stage: Deploy

@@ -4,7 +4,7 @@ param location string = resourceGroup().location
 param appServicePlanName string
 param webAppName string
 param appServicePlanSku string = 'B1'
-param appRuntime string = 'DOTNETCORE|8.0'
+param appRuntime string = 'DOTNETCORE|10.0'
 param enableSystemIdentity bool = true
 param appSettings object = {}
 
