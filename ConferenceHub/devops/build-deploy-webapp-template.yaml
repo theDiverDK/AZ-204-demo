@@ -57,4 +57,4 @@ steps:
       azureSubscription: ${{ parameters.azureServiceConnectionName }}
       appType: ${{ parameters.appType }}
       appName: ${{ parameters.webAppName }}
-      package: '$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}/${{ parameters.webAppName }}.zip'
+      package: '$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}/ConferenceHub.zip'
