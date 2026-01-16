@@ -66,7 +66,7 @@ stages:
           - template: build-deploy-webapp-template.yaml
             parameters:
               webAppName: $(appName)
-              appServiceName: $(appServicePlanName)
+              appServiceName: $(appName)
               appType: webApp
               azureServiceConnectionName: $(azureServiceConnectionName)
 
