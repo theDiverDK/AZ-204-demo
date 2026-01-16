@@ -1121,3 +1121,9 @@ In **Learning Path 5**, you'll:
 - Backup existing data before migration
 - Test migration script with small dataset first
 - Verify data types match between old and new models
+
+## Azure DevOps Pipeline (Incremental Deployment)
+- Pipeline: `Learning Path/04-CosmosDB/azure-pipelines.yml`
+- Bicep: `Learning Path/04-CosmosDB/infra.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `cosmosAccountName`, `cosmosDatabaseName`, `storageAccountName`, `functionAppName`, `mainWebAppName`
+- Notes: The pipeline provisions Cosmos DB and updates web app settings for `CosmosDb__ConnectionString`/`CosmosDb__DatabaseName` plus Storage/Functions settings.

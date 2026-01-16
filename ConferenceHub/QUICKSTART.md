@@ -3,7 +3,7 @@
 ## 🚀 Running Locally (5 minutes)
 
 ### Prerequisites
-- .NET 8.0 SDK installed
+- .NET 10.0 SDK installed
 - VS Code or Visual Studio (optional)
 
 ### Steps
@@ -225,3 +225,9 @@ Edit `Data/sessions.json`:
 
 ---
 **Ready to deploy to Azure? See DEPLOYMENT.md**
+
+## Azure DevOps Pipeline (Infrastructure + App)
+- Pipeline: `ConferenceHub/azure-pipelines.yml`
+- Bicep: `ConferenceHub/infra/main.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `appServicePlanName`, `webAppName`, `appServicePlanSku`, `appRuntime`
+- Notes: Ensure `webAppName` is globally unique; the pipeline builds and zip-deploys the app after infra provisioning.

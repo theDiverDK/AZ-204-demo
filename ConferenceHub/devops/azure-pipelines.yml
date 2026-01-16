@@ -1,0 +1,72 @@
+trigger: none
+#  branches:
+#    include:
+#      - main
+#  paths:
+#    include:
+#      - .ado/*
+#      - .azure/*
+
+pool:
+  name: 'Minecraft server 2'
+ # vmImage: 'ubuntu-latest'
+
+variables:
+  azureServiceConnectionName: 'Azure Service Connection'
+  location: 'swedencentral'
+  resourceGroupName: 'rg-conferencehub'
+  appServicePlanName: 'plan-conferencehub'
+  appName: 'app-conferencehub'
+  
+  appServicePlanSku: 'S1'
+  appRuntime: 'DOTNETCORE|10.0'
+  appType: 'webApp'
+  System.Debug: true
+  environment: demo
+
+pr: none
+
+stages:
+  - stage: Deploy_Infrastructure_stage
+    displayName: 'Deploy Infrastructure'
+
+    jobs:
+      - job: Deploy_Infrastructure_jobs
+
+        steps:
+          - task: AzureCLI@2
+            displayName: Create or update the resource group
+            inputs:
+              azureSubscription: '$(azureServiceConnectionName)'
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                az group create --location $(location) --name $(resourceGroupName)
+
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: 'Deploy all infrastructure'
+            inputs:
+              connectedServiceName: $(azureServiceConnectionName)
+              location: $(location)
+              resourceGroupName: $(resourceGroupName)
+              csmFile: 'ConferenceHub/devops/main.bicep'
+              overrideParameters: 
+                -appServicePlanName $(appServicePlanName)
+                -webAppName $(appName)
+
+              deploymentOutputs: infrastructureAsCodeOutputs
+
+  - stage: 
+    displayName: 'Build/Depoy WebApplication1 webapp'
+    dependsOn: 'Deploy_Infrastructure_stage'
+
+    jobs:
+      - job:
+        steps:
+          - template: build-deploy-webapp-template.yaml
+            parameters:
+              webAppName: $(appName)
+              appServiceName: $(appServicePlanName)
+              appType: webApp
+              azureServiceConnectionName: $(azureServiceConnectionName)
+

@@ -1060,3 +1060,9 @@ In **Learning Path 7**, you'll:
 - Verify app roles are defined in App Registration manifest
 - Ensure users are assigned roles through Enterprise Application
 - Check that roles claim is being included in token
+
+## Azure DevOps Pipeline (Incremental Deployment)
+- Pipeline: `Learning Path/06-Authentication/azure-pipelines.yml`
+- Bicep: `Learning Path/06-Authentication/infra.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `mainWebAppName`, `storageAccountName`, `cosmosAccountName`, `cosmosDatabaseName`, `functionAppName`, `azureAdTenantId`, `azureAdClientId`, `AzureAdClientSecret`
+- Notes: The pipeline updates web app settings for Entra ID auth and keeps Storage/Cosmos/Functions settings aligned.

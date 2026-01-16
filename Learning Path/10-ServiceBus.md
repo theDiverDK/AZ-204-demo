@@ -999,3 +999,9 @@ In **Learning Path 11** (Final), you'll:
 - Review function execution time and timeout settings
 - Consider scaling out Function App
 - Monitor queue length and processing rate
+
+## Azure DevOps Pipeline (Incremental Deployment)
+- Pipeline: `Learning Path/10-ServiceBus/azure-pipelines.yml`
+- Bicep: `Learning Path/10-ServiceBus/infra.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `mainWebAppName`, `storageAccountName`, `cosmosAccountName`, `cosmosDatabaseName`, `functionAppName`, `keyVaultUri`, `appConfigEndpoint`, `azureAdTenantId`, `azureAdClientId`, `AzureAdClientSecret`, `apiManagementGatewayUrl`, `ApiManagementSubscriptionKey`, `eventHubNamespaceName`, `eventHubName`, `serviceBusNamespaceName`, `serviceBusQueueName`, `serviceBusTopicName`
+- Notes: The pipeline provisions Service Bus + Storage queues and updates web app settings for `ServiceBus__ConnectionString`.
