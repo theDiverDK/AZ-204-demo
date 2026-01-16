@@ -21,7 +21,7 @@ variables:
   appServicePlanSku: 'S1'
   appRuntime: 'DOTNETCORE|10.0'
   appType: 'webApp'
-  System.Debug: true
+  System.Debug: false
   environment: demo
 
 pr: none

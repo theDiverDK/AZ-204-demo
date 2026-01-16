@@ -3,7 +3,7 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 param appServicePlanName string
 param webAppName string
-param appServicePlanSku string = 'S1'
+param appServicePlanSku string = 'P0v3'
 param appRuntime string = 'DOTNETCORE|10.0'
 param appCommandLine string = '/home/site/wwwroot/ConferenceHub'
 param enableSystemIdentity bool = true
@@ -21,7 +21,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   location: location
   sku: {
     name: appServicePlanSku
-    tier: appServicePlanSku == 'F1' ? 'Free' : 'Standard'
+    tier: appServicePlanSku == 'F1' ? 'Free' : 'PremiumV3'
     size: appServicePlanSku
     capacity: 1
   }
