@@ -1,98 +1,49 @@
-trigger:
-  branches:
-    include:
-      - main
+trigger: none
+#  branches:
+#    include:
+#      - main
+#  paths:
+#    include:
+#      - .ado/*
+#      - .azure/*
+
+pool:
+  name: 'Minecraft server 2'
+ # vmImage: 'ubuntu-latest'
 
 variables:
-  azureSubscription: 'Azure Service Connection'
-  resourceGroupName: 'rg-conferencehub'
-  location: 'swedencentral'
-  appServicePlanName: 'plan-conferencehub'
-  webAppName: 'app-conferencehub'
-  appServicePlanSku: 'S1'
-  appRuntime: 'DOTNETCORE|10.0'
-  appCommandLine: '/home/site/wwwroot/ConferenceHub'
-  publishDir: '$(Build.SourcesDirectory)/.pipeline/publish'
-  deployZip: '$(Build.ArtifactStagingDirectory)/ConferenceHub.zip'
+  - group: 'Production Variables'
+
+pr: none
 
 stages:
-  - stage: Deploy
-    displayName: Deploy ConferenceHub
+  - stage: Deploy_Infrastructure_stage
+    displayName: 'Deploy Infrastructure'
+
     jobs:
-      - job: DeployWebApp
-        displayName: Deploy infrastructure and app
-        pool:
-          vmImage: ubuntu-latest
+      - job: Deploy_Infrastructure_jobs
+
         steps:
           - task: AzureCLI@2
-            displayName: Deploy infrastructure (Bicep)
+            displayName: Create or update the resource group
             inputs:
-              azureSubscription: $(azureSubscription)
-              scriptType: bash
+              azureSubscription: '$(azureServiceConnectionName)'
+              scriptType: pscore
               scriptLocation: inlineScript
               inlineScript: |
-                az deployment group create \
-                  --resource-group "$(resourceGroupName)" \
-                  --template-file "$(Build.SourcesDirectory)/ConferenceHub/infra/main.bicep" \
-                  --parameters \
-                      location="$(location)" \
-                      appServicePlanName="$(appServicePlanName)" \
-                      webAppName="$(webAppName)" \
-                      appServicePlanSku="$(appServicePlanSku)" \
-                      appRuntime="$(appRuntime)" \
-                      appCommandLine="$(appCommandLine)"
+                az group create --location $(location) --name $(resourceGroupName)
 
-          - task: UseDotNet@2
-            displayName: Use .NET SDK
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: 'Deploy all infrastructure'
             inputs:
-              packageType: sdk
-              version: '10.x'
-
-          - script: |
-              rm -rf "$(publishDir)"
-              mkdir -p "$(publishDir)"
-            displayName: Prepare publish directory
-
-          - task: DotNetCoreCLI@2
-            displayName: Publish ConferenceHub
-            inputs:
-              command: publish
-              publishWebProjects: false
-              projects: 'ConferenceHub/ConferenceHub.csproj'
-              arguments: '--configuration Release --output $(publishDir) -r linux-x64 --self-contained true'
-
-          - script: |
-              echo "Published files:"
-              ls -la "$(publishDir)"
-            displayName: Inspect publish output
-
-          - task: ArchiveFiles@2
-            displayName: Archive publish output
-            inputs:
-              rootFolderOrFile: '$(publishDir)'
-              includeRootFolder: false
-              archiveType: zip
-              archiveFile: '$(deployZip)'
-              replaceExistingArchive: true
-
-          - script: |
-              set -e
-              echo "ZIP contents (first 200 lines):"
-              unzip -l "$(deployZip)" | head -200
-              unzip -l "$(deployZip)" | awk '{print $4}' | grep -x "ConferenceHub"
-              unzip -l "$(deployZip)" | awk '{print $4}' | grep -x "ConferenceHub.runtimeconfig.json"
-            displayName: Validate ZIP contents
-
-          - task: PublishPipelineArtifact@1
-            displayName: Publish deployment artifact
-            inputs:
-              targetPath: '$(deployZip)'
-              artifact: 'conferencehub-drop'
-
-          - task: AzureWebApp@1
-            displayName: Deploy to App Service
-            inputs:
-              azureSubscription: $(azureSubscription)
-              appType: webAppLinux
-              appName: $(webAppName)
-              package: '$(deployZip)'
+              connectedServiceName: $(azureServiceConnectionName)
+              location: $(location)
+              resourceGroupName: $(resourceGroupName)
+              csmFile: ConferenceHub/infra/main.bicep
+              overrideParameters: 
+                -appServicePlanName $(appServicePlanName)
+                -webAppName $(webAppName)
+                -appServicePlanSku $(appServicePlanSku)
+                -appRuntime $(appRuntime)
+                -appCommandLine $(appCommandLine)
+              deploymentOutputs: infrastructureAsCodeOutputs
