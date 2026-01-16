@@ -77,10 +77,3 @@ steps:
       appType: ${{ parameters.appType }}
       appName: ${{ parameters.appServiceName }}
       package: '$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}.zip'
-
-  # - template: deploy-webapp-template.yaml
-  #   parameters:
-  #     webAppName: ${{ parameters.webAppName }}
-  #     appServiceName: ${{ parameters.appServiceName }}
-  #     appType: ${{ parameters.appType }}
-  #     azureServiceConnectionName: ${{ parameters.azureServiceConnectionName }}

@@ -19,8 +19,7 @@ variables:
   webAppName: 'app-conferencehub'
   appServicePlanSku: 'S1'
   appRuntime: 'DOTNETCORE|10.0'
-  appCommandLine: '/home/site/wwwroot/ConferenceHub'
-  appType: 'webAppLinux'
+  appType: 'webApp'
 
 pr: none
 
@@ -47,24 +46,27 @@ stages:
               connectedServiceName: $(azureServiceConnectionName)
               location: $(location)
               resourceGroupName: $(resourceGroupName)
-              csmFile: ConferenceHub/devops/main.bicep
+              csmFile: .azure/bicep/infrastructure.bicep
               overrideParameters: 
-                -appServicePlanName $(appServicePlanName)
-                -webAppName $(webAppName)
-                -appServicePlanSku $(appServicePlanSku)
-                -appRuntime $(appRuntime)
-                -appCommandLine $(appCommandLine)
+                -appName $(appName)
+                -env $(environment)
               deploymentOutputs: infrastructureAsCodeOutputs
 
-  - stage: Deploy_App_stage
-    displayName: 'Deploy Application'
-    dependsOn: Deploy_Infrastructure_stage
+  - stage: 
+    displayName: 'Build/Depoy WebApplication1 webapp'
+    dependsOn: 'Deploy_Infrastructure_stage'
+
+    variables:
+      webAppName: WebApplication1
+      applicationName: az204
+
     jobs:
-      - job: Deploy_App_job
+      - job:
         steps:
           - template: build-deploy-webapp-template.yaml
             parameters:
-              webAppName: 'ConferenceHub'
-              appServiceName: $(webAppName)
-              appType: $(appType)
+              webAppName: $(webAppName)
+              appServiceName: $(appServicePlanName)
+              appType: webApp
               azureServiceConnectionName: $(azureServiceConnectionName)
+
