@@ -1,60 +1,42 @@
-parameters:
-  - name: webAppName
-    type: string
+trigger: none
+#  branches:
+#    include:
+#      - main
+#  paths:
+#    include:
+#      - .ado/*
+#      - .azure/*
 
-  - name: appServiceName
-    type: string
+pool:
+  name: 'Minecraft server 2'
+ # vmImage: 'ubuntu-latest'
 
-  - name: appType
-    type: string
+variables:
+  azureServiceConnectionName: 'Azure Service Connection'
+  location: 'swedencentral'
+  resourceGroupName: 'rg-conferencehub'
+  appServicePlanName: 'plan-conferencehub'
+  appName: 'app-conferencehub'
 
-  - name: azureServiceConnectionName
-    type: string
+  appServicePlanSku: 'S1'
+  appRuntime: 'DOTNETCORE|10.0'
+  appType: 'webApp'
+  System.Debug: true
+  environment: demo
 
-steps:
-  - task: UseDotNet@2
-    displayName: 'Install .NET 10.0 SDK'
-    inputs:
-      packageType: 'sdk'
-      version: '10.0.x'
+pr: none
 
-  - task: DotNetCoreCLI@2
-    displayName: 'Restore Nuget Packages'
-    inputs:
-      command: 'restore'
-      projects: '$(System.DefaultWorkingDirectory)/ConferenceHub/*.csproj'  
-      feedsToUse: 'select'
+stages:
+  - stage: 
+    displayName: 'Build/Depoy WebApplication1 webapp'
+    dependsOn: 'Deploy_Infrastructure_stage'
 
-  - task: DotNetCoreCLI@2
-    displayName: 'Build and Publish'
-    inputs:
-      command: 'publish'
-      projects: '$(System.DefaultWorkingDirectory)/ConferenceHub/*.csproj'
-      publishWebProjects: false
-      arguments: "-o $(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }} --configuration Release"
-
-  - task: PublishPipelineArtifact@1
-    displayName: 'Publish artifact'
-    inputs:
-      targetPath: "$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}"
-      artifact: ${{ parameters.appServiceName }}
-      publishLocation: "pipeline"
-
-  - script: |
-          echo "webAppName: ${{ parameters.webAppName }}"
-          echo "appServiceName: ${{ parameters.appServiceName }}"
-          echo "appType: ${{ parameters.appType }}"
-          echo "azureServiceConnectionName: ${{ parameters.azureServiceConnectionName }}"
-          echo "targetPath: $(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}"
-          echo "artifact: ${{ parameters.appServiceName }}"
-          echo "package: $(Pipeline.workspace)/${{ parameters.appServiceName }}/${{ parameters.webAppName }}.zip"
-
-    displayName: 'Print variables using Bash from build-deploy-webapp-template.yaml'
-
-  - task: AzureWebApp@1
-    displayName: 'Deploy Azure Web App'
-    inputs:
-      azureSubscription: ${{ parameters.azureServiceConnectionName }}
-      appType: ${{ parameters.appType }}
-      appName: ${{ parameters.webAppName }}
-      package: '$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}/${{ parameters.webAppName }}.zip'
+    jobs:
+      - job:
+        steps:
+          - template: build-deploy-webapp-template.yaml
+            parameters:
+              webAppName: $(appName)
+              appServiceName: $(appServicePlanName)
+              appType: webApp
+              azureServiceConnectionName: $(azureServiceConnectionName)
