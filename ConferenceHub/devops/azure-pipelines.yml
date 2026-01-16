@@ -47,7 +47,7 @@ stages:
               connectedServiceName: $(azureServiceConnectionName)
               location: $(location)
               resourceGroupName: $(resourceGroupName)
-              csmFile: /ConferenceHub/devops/main.bicep
+              csmFile: 'ConferenceHub/devops/main.bicep'
               overrideParameters: 
                 -appName $(appName)
                 -env $(environment)
