@@ -13,60 +13,41 @@ parameters:
 
 steps:
   - task: UseDotNet@2
-    displayName: 'Install .NET 10.0 SDK'
+    displayName: 'Install .NET 8.0 SDK'
     inputs:
       packageType: 'sdk'
-      version: '10.x'
-
-  - script: |
-      rm -rf "$(Build.SourcesDirectory)/.pipeline/publish"
-      mkdir -p "$(Build.SourcesDirectory)/.pipeline/publish"
-    displayName: 'Prepare publish directory'
+      version: '8.0.x'
 
   - task: DotNetCoreCLI@2
-    displayName: 'Restore NuGet packages'
+    displayName: 'Restore Nuget Packages'
     inputs:
       command: 'restore'
-      projects: '$(System.DefaultWorkingDirectory)/ConferenceHub/ConferenceHub.csproj'
+      projects: $(System.DefaultWorkingDirectory)/src/WebApps/${{ parameters.webAppName }}/*.csproj
       feedsToUse: 'select'
 
   - task: DotNetCoreCLI@2
-    displayName: 'Build and publish'
+    displayName: 'Build and Publish'
     inputs:
       command: 'publish'
-      projects: '$(System.DefaultWorkingDirectory)/ConferenceHub/ConferenceHub.csproj'
+      projects: $(System.DefaultWorkingDirectory)/src/WebApps/${{ parameters.webAppName }}/*.csproj
       publishWebProjects: false
-      arguments: '-o $(Build.SourcesDirectory)/.pipeline/publish --configuration Release -r linux-x64 --self-contained true'
-
-  - script: |
-      echo "Publish output:"
-      ls -la "$(Build.SourcesDirectory)/.pipeline/publish"
-    displayName: 'Inspect publish output'
-
-  - task: ArchiveFiles@2
-    displayName: 'Archive publish output'
-    inputs:
-      rootFolderOrFile: '$(Build.SourcesDirectory)/.pipeline/publish'
-      includeRootFolder: false
-      archiveType: zip
-      archiveFile: '$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}.zip'
-      replaceExistingArchive: true
+      arguments: "-o $(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }} --configuration Release"
 
   - task: PublishPipelineArtifact@1
     displayName: 'Publish artifact'
     inputs:
-      targetPath: '$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}.zip'
+      targetPath: "$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}"
       artifact: ${{ parameters.appServiceName }}
-      publishLocation: 'pipeline'
+      publishLocation: "pipeline"
 
   - script: |
           echo "webAppName: ${{ parameters.webAppName }}"
           echo "appServiceName: ${{ parameters.appServiceName }}"
           echo "appType: ${{ parameters.appType }}"
           echo "azureServiceConnectionName: ${{ parameters.azureServiceConnectionName }}"
-          echo "targetPath: $(Build.SourcesDirectory)/.pipeline/publish"
+          echo "targetPath: $(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}"
           echo "artifact: ${{ parameters.appServiceName }}"
-          echo "package: $(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}.zip"
+          echo "package: $(Pipeline.workspace)/${{ parameters.appServiceName }}/${{ parameters.webAppName }}.zip"
 
     displayName: 'Print variables using Bash from build-deploy-webapp-template.yaml'
 
@@ -76,4 +57,4 @@ steps:
       azureSubscription: ${{ parameters.azureServiceConnectionName }}
       appType: ${{ parameters.appType }}
       appName: ${{ parameters.appServiceName }}
-      package: '$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}.zip'
+      package: '$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}/${{ parameters.webAppName }}.zip'
