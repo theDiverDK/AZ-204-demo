@@ -56,5 +56,5 @@ steps:
     inputs:
       azureSubscription: ${{ parameters.azureServiceConnectionName }}
       appType: ${{ parameters.appType }}
-      appName: ${{ parameters.appServiceName }}
+      appName: ${{ parameters.webAppName }}
       package: '$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}/${{ parameters.webAppName }}.zip'
