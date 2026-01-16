@@ -5,7 +5,7 @@ param appServicePlanName string
 param webAppName string
 param appServicePlanSku string = 'S1'
 param appRuntime string = 'DOTNETCORE|10.0'
-param appCommandLine string = './ConferenceHub'
+param appCommandLine string = '/home/site/wwwroot/ConferenceHub'
 param enableSystemIdentity bool = true
 param appSettings object = {}
 

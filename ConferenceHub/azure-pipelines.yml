@@ -11,7 +11,7 @@ variables:
   webAppName: 'app-conferencehub'
   appServicePlanSku: 'S1'
   appRuntime: 'DOTNETCORE|10.0'
-  appCommandLine: './ConferenceHub'
+  appCommandLine: '/home/site/wwwroot/ConferenceHub'
   publishDir: '$(Build.SourcesDirectory)/.pipeline/publish'
   deployZip: '$(Build.ArtifactStagingDirectory)/ConferenceHub.zip'
 
@@ -74,6 +74,14 @@ stages:
               archiveType: zip
               archiveFile: '$(deployZip)'
               replaceExistingArchive: true
+
+          - script: |
+              set -e
+              echo "ZIP contents (first 200 lines):"
+              unzip -l "$(deployZip)" | head -200
+              unzip -l "$(deployZip)" | awk '{print $4}' | grep -x "ConferenceHub"
+              unzip -l "$(deployZip)" | awk '{print $4}' | grep -x "ConferenceHub.runtimeconfig.json"
+            displayName: Validate ZIP contents
 
           - task: PublishPipelineArtifact@1
             displayName: Publish deployment artifact
