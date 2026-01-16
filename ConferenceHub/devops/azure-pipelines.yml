@@ -12,7 +12,15 @@ pool:
  # vmImage: 'ubuntu-latest'
 
 variables:
-  - group: 'Production Variables'
+  azureServiceConnectionName: 'Azure Service Connection'
+  location: 'swedencentral'
+  resourceGroupName: 'rg-conferencehub'
+  appServicePlanName: 'plan-conferencehub'
+  webAppName: 'app-conferencehub'
+  appServicePlanSku: 'S1'
+  appRuntime: 'DOTNETCORE|10.0'
+  appCommandLine: '/home/site/wwwroot/ConferenceHub'
+  appType: 'webAppLinux'
 
 pr: none
 
