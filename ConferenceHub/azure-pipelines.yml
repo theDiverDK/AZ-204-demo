@@ -11,6 +11,7 @@ variables:
   webAppName: 'app-conferencehub'
   appServicePlanSku: 'S1'
   appRuntime: 'DOTNETCORE|10.0'
+  appCommandLine: './ConferenceHub'
 
 stages:
   - stage: Deploy
@@ -36,7 +37,8 @@ stages:
                       appServicePlanName="$(appServicePlanName)" \
                       webAppName="$(webAppName)" \
                       appServicePlanSku="$(appServicePlanSku)" \
-                      appRuntime="$(appRuntime)"
+                      appRuntime="$(appRuntime)" \
+                      appCommandLine="$(appCommandLine)"
 
           - task: UseDotNet@2
             displayName: Use .NET SDK
@@ -50,7 +52,12 @@ stages:
               command: publish
               publishWebProjects: false
               projects: 'ConferenceHub/ConferenceHub.csproj'
-              arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)/publish'
+              arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)/publish -r linux-x64 --self-contained true'
+
+          - script: |
+              echo "Published files:"
+              ls -la "$(Build.ArtifactStagingDirectory)/publish"
+            displayName: Inspect publish output
 
           - task: ArchiveFiles@2
             displayName: Archive publish output

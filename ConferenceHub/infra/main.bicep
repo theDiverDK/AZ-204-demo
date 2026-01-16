@@ -5,6 +5,7 @@ param appServicePlanName string
 param webAppName string
 param appServicePlanSku string = 'S1'
 param appRuntime string = 'DOTNETCORE|10.0'
+param appCommandLine string = './ConferenceHub'
 param enableSystemIdentity bool = true
 param appSettings object = {}
 
@@ -41,6 +42,7 @@ resource webApp 'Microsoft.Web/sites@2022-09-01' = {
     httpsOnly: true
     siteConfig: {
       linuxFxVersion: appRuntime
+      appCommandLine: appCommandLine
       ftpsState: 'Disabled'
     }
   }
