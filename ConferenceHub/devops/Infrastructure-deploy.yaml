@@ -1,0 +1,60 @@
+parameters:
+  - name: webAppName
+    type: string
+
+  - name: appServiceName
+    type: string
+
+  - name: appType
+    type: string
+
+  - name: azureServiceConnectionName
+    type: string
+
+steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET 10.0 SDK'
+    inputs:
+      packageType: 'sdk'
+      version: '10.0.x'
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Restore Nuget Packages'
+    inputs:
+      command: 'restore'
+      projects: '$(System.DefaultWorkingDirectory)/ConferenceHub/*.csproj'  
+      feedsToUse: 'select'
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Build and Publish'
+    inputs:
+      command: 'publish'
+      projects: '$(System.DefaultWorkingDirectory)/ConferenceHub/*.csproj'
+      publishWebProjects: false
+      arguments: "-o $(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }} --configuration Release"
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish artifact'
+    inputs:
+      targetPath: "$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}"
+      artifact: ${{ parameters.appServiceName }}
+      publishLocation: "pipeline"
+
+  - script: |
+          echo "webAppName: ${{ parameters.webAppName }}"
+          echo "appServiceName: ${{ parameters.appServiceName }}"
+          echo "appType: ${{ parameters.appType }}"
+          echo "azureServiceConnectionName: ${{ parameters.azureServiceConnectionName }}"
+          echo "targetPath: $(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}"
+          echo "artifact: ${{ parameters.appServiceName }}"
+          echo "package: $(Pipeline.workspace)/${{ parameters.appServiceName }}/${{ parameters.webAppName }}.zip"
+
+    displayName: 'Print variables using Bash from build-deploy-webapp-template.yaml'
+
+  - task: AzureWebApp@1
+    displayName: 'Deploy Azure Web App'
+    inputs:
+      azureSubscription: ${{ parameters.azureServiceConnectionName }}
+      appType: ${{ parameters.appType }}
+      appName: ${{ parameters.webAppName }}
+      package: '$(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }}/${{ parameters.webAppName }}.zip'
