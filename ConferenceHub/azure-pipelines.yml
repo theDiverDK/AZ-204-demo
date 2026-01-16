@@ -47,3 +47,16 @@ stages:
                 -appRuntime $(appRuntime)
                 -appCommandLine $(appCommandLine)
               deploymentOutputs: infrastructureAsCodeOutputs
+
+  - stage: Deploy_App_stage
+    displayName: 'Deploy Application'
+    dependsOn: Deploy_Infrastructure_stage
+    jobs:
+      - job: Deploy_App_job
+        steps:
+          - template: .ado/deploy-webapp-template.yaml
+            parameters:
+              webAppName: 'ConferenceHub'
+              appServiceName: $(webAppName)
+              appType: $(appType)
+              azureServiceConnectionName: $(azureServiceConnectionName)
