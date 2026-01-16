@@ -76,3 +76,20 @@ az webapp show `
 3. Test the Sessions page: `/sessions`
 4. Test the Organizer dashboard: `/organizer`
 5. Try registering for a session
+
+## Option 2: Deploy via Azure DevOps Pipeline
+
+### Step 1: Create Service Connection
+- Create an Azure Resource Manager service connection in Azure DevOps.
+- Grant it access to the subscription/resource group.
+
+### Step 2: Configure Pipeline Variables
+Update `ConferenceHub/azure-pipelines.yml` variables:
+- `azureSubscription` (service connection name)
+- `resourceGroupName`, `location`
+- `appServicePlanName`, `webAppName`
+- `appServicePlanSku`, `appRuntime`
+
+### Step 3: Run Pipeline
+- Create a pipeline from `ConferenceHub/azure-pipelines.yml`.
+- Run the pipeline; it deploys infra using Bicep and then publishes the web app.

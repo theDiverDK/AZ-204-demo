@@ -1086,3 +1086,9 @@ In **Learning Path 8**, you'll:
 - Check Key Vault access policies if using RBAC
 - Ensure secrets exist in Key Vault
 - Review application logs for Key Vault access errors
+
+## Azure DevOps Pipeline (Incremental Deployment)
+- Pipeline: `Learning Path/07-KeyVault/azure-pipelines.yml`
+- Bicep: `Learning Path/07-KeyVault/infra.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `mainWebAppName`, `functionAppName`, `storageAccountName`, `cosmosAccountName`, `cosmosDatabaseName`, `keyVaultName`, `appConfigName`, `azureAdTenantId`, `azureAdClientId`, `AzureAdClientSecret`
+- Notes: The pipeline provisions Key Vault and App Configuration, assigns RBAC roles to the web/function app identities, and sets `KeyVault__VaultUri` and `AppConfiguration__Endpoint`.

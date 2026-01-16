@@ -1,0 +1,38 @@
+trigger: none
+
+variables:
+  azureSubscription: 'YOUR-AZURE-DEVOPS-SERVICE-CONNECTION'
+  resourceGroupName: 'rg-conferencehub'
+  location: 'swedencentral'
+  cosmosAccountName: 'cosmos-conferencehub'
+  cosmosDatabaseName: 'ConferenceHubDB'
+  storageAccountName: 'stconferencehub'
+  functionAppName: 'func-conferencehub'
+  mainWebAppName: 'app-conferencehub'
+
+stages:
+  - stage: Deploy
+    displayName: Deploy Learning Path 04 - Cosmos DB
+    jobs:
+      - job: DeployCosmosInfra
+        displayName: Deploy Cosmos DB infrastructure
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: AzureCLI@2
+            displayName: Deploy Bicep
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment group create \
+                  --resource-group "$(resourceGroupName)" \
+                  --template-file "$(Build.SourcesDirectory)/Learning Path/04-CosmosDB/infra.bicep" \
+                  --parameters \
+                      location="$(location)" \
+                      cosmosAccountName="$(cosmosAccountName)" \
+                      cosmosDatabaseName="$(cosmosDatabaseName)" \
+                      storageAccountName="$(storageAccountName)" \
+                      functionAppName="$(functionAppName)" \
+                      mainWebAppName="$(mainWebAppName)"

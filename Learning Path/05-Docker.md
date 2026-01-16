@@ -603,3 +603,9 @@ In **Learning Path 6**, you'll:
 - Verify image exists in ACR
 - Check resource quotas
 - Review Container Apps environment status
+
+## Azure DevOps Pipeline (Incremental Deployment)
+- Pipeline: `Learning Path/05-Docker/azure-pipelines.yml`
+- Bicep: `Learning Path/05-Docker/infra.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `acrName`, `containerAppsEnvName`, `containerAppName`, `containerImage`, `storageAccountName`, `cosmosAccountName`, `cosmosDatabaseName`, `functionAppName`
+- Notes: The pipeline provisions ACR + Container Apps and uses `containerImage` (must already exist in ACR). It sets environment variables for Cosmos DB, Storage, and Functions.

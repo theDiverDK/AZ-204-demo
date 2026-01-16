@@ -672,3 +672,9 @@ In **Learning Path 3**, you'll:
 ### Timer running too frequently
 - Verify CRON expression: `0 0 2 * * *` = 2 AM daily
 - For testing, use `0 */5 * * * *` = every 5 minutes
+
+## Azure DevOps Pipeline (Incremental Deployment)
+- Pipeline: `Learning Path/02-Functions/azure-pipelines.yml`
+- Bicep: `Learning Path/02-Functions/infra.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `functionStorageAccountName`, `functionAppName`, `functionPlanName`, `mainWebAppName`
+- Notes: The pipeline provisions the Function App and updates the web app settings with `AzureFunctions__SendConfirmationUrl` and `AzureFunctions__FunctionKey`.

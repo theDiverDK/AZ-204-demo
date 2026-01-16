@@ -1,0 +1,60 @@
+trigger: none
+
+variables:
+  azureSubscription: 'YOUR-AZURE-DEVOPS-SERVICE-CONNECTION'
+  resourceGroupName: 'rg-conferencehub'
+  location: 'swedencentral'
+  mainWebAppName: 'app-conferencehub'
+  storageAccountName: 'stconferencehub'
+  cosmosAccountName: 'cosmos-conferencehub'
+  cosmosDatabaseName: 'ConferenceHubDB'
+  functionAppName: 'func-conferencehub'
+  keyVaultUri: 'https://kv-conferencehub.vault.azure.net/'
+  appConfigEndpoint: 'https://appconfig-conferencehub.azconfig.io'
+  azureAdInstance: 'https://login.microsoftonline.com/'
+  azureAdTenantId: 'YOUR_TENANT_ID'
+  azureAdClientId: 'YOUR_CLIENT_ID'
+  azureAdClientSecret: '$(AzureAdClientSecret)'
+  apiManagementName: 'apim-conferencehub'
+  apiManagementPublisherEmail: 'instructor@example.com'
+  apiManagementPublisherName: 'ConferenceHub'
+  apiManagementSkuName: 'Developer'
+  apiManagementSubscriptionKey: '$(ApiManagementSubscriptionKey)'
+
+stages:
+  - stage: Deploy
+    displayName: Deploy Learning Path 08 - API Management
+    jobs:
+      - job: DeployApim
+        displayName: Deploy APIM
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: AzureCLI@2
+            displayName: Deploy Bicep
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment group create \
+                  --resource-group "$(resourceGroupName)" \
+                  --template-file "$(Build.SourcesDirectory)/Learning Path/08-APIM/infra.bicep" \
+                  --parameters \
+                      location="$(location)" \
+                      mainWebAppName="$(mainWebAppName)" \
+                      storageAccountName="$(storageAccountName)" \
+                      cosmosAccountName="$(cosmosAccountName)" \
+                      cosmosDatabaseName="$(cosmosDatabaseName)" \
+                      functionAppName="$(functionAppName)" \
+                      keyVaultUri="$(keyVaultUri)" \
+                      appConfigEndpoint="$(appConfigEndpoint)" \
+                      azureAdInstance="$(azureAdInstance)" \
+                      azureAdTenantId="$(azureAdTenantId)" \
+                      azureAdClientId="$(azureAdClientId)" \
+                      azureAdClientSecret="$(azureAdClientSecret)" \
+                      apiManagementName="$(apiManagementName)" \
+                      apiManagementPublisherEmail="$(apiManagementPublisherEmail)" \
+                      apiManagementPublisherName="$(apiManagementPublisherName)" \
+                      apiManagementSkuName="$(apiManagementSkuName)" \
+                      apiManagementSubscriptionKey="$(apiManagementSubscriptionKey)"

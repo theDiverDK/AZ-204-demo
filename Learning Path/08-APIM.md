@@ -909,3 +909,9 @@ In **Learning Path 9**, you'll:
 - Verify external cache is configured (for distributed caching)
 - Check vary-by parameters match your request
 - Review cache duration and TTL settings
+
+## Azure DevOps Pipeline (Incremental Deployment)
+- Pipeline: `Learning Path/08-APIM/azure-pipelines.yml`
+- Bicep: `Learning Path/08-APIM/infra.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `mainWebAppName`, `storageAccountName`, `cosmosAccountName`, `cosmosDatabaseName`, `functionAppName`, `keyVaultUri`, `appConfigEndpoint`, `azureAdTenantId`, `azureAdClientId`, `AzureAdClientSecret`, `apiManagementName`, `apiManagementPublisherEmail`, `apiManagementPublisherName`, `ApiManagementSubscriptionKey`
+- Notes: The pipeline provisions APIM and configures `ApiManagement__GatewayUrl` and `ApiManagement__SubscriptionKey` for the web app.

@@ -1022,3 +1022,9 @@ In **Learning Path 4**, you'll:
 - Ensure blob container has public read access
 - Verify blob URL is correctly saved to session
 - Check CORS settings if accessing from different domain
+
+## Azure DevOps Pipeline (Incremental Deployment)
+- Pipeline: `Learning Path/03-Storage/azure-pipelines.yml`
+- Bicep: `Learning Path/03-Storage/infra.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `storageAccountName`, `functionAppName`, `mainWebAppName`
+- Notes: The pipeline provisions Storage (blob container + table) and updates web app settings for `AzureStorage__ConnectionString` plus Functions settings.

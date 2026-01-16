@@ -1,0 +1,60 @@
+trigger: none
+
+variables:
+  azureSubscription: 'YOUR-AZURE-DEVOPS-SERVICE-CONNECTION'
+  resourceGroupName: 'rg-conferencehub'
+  location: 'swedencentral'
+  mainWebAppName: 'app-conferencehub'
+  functionAppName: 'func-conferencehub'
+  storageAccountName: 'stconferencehub'
+  cosmosAccountName: 'cosmos-conferencehub'
+  cosmosDatabaseName: 'ConferenceHubDB'
+  keyVaultUri: 'https://kv-conferencehub.vault.azure.net/'
+  appConfigEndpoint: 'https://appconfig-conferencehub.azconfig.io'
+  azureAdInstance: 'https://login.microsoftonline.com/'
+  azureAdTenantId: 'YOUR_TENANT_ID'
+  azureAdClientId: 'YOUR_CLIENT_ID'
+  azureAdClientSecret: '$(AzureAdClientSecret)'
+  apiManagementGatewayUrl: 'https://apim-conferencehub.azure-api.net'
+  apiManagementSubscriptionKey: '$(ApiManagementSubscriptionKey)'
+  eventHubNamespaceName: 'evhns-conferencehub'
+  eventHubName: 'session-feedback'
+  serviceBusNamespaceName: 'sb-conferencehub'
+
+stages:
+  - stage: Deploy
+    displayName: Deploy Learning Path 11 - App Insights
+    jobs:
+      - job: DeployAppInsights
+        displayName: Deploy Application Insights
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: AzureCLI@2
+            displayName: Deploy Bicep
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment group create \
+                  --resource-group "$(resourceGroupName)" \
+                  --template-file "$(Build.SourcesDirectory)/Learning Path/11-AppInsights/infra.bicep" \
+                  --parameters \
+                      location="$(location)" \
+                      mainWebAppName="$(mainWebAppName)" \
+                      functionAppName="$(functionAppName)" \
+                      storageAccountName="$(storageAccountName)" \
+                      cosmosAccountName="$(cosmosAccountName)" \
+                      cosmosDatabaseName="$(cosmosDatabaseName)" \
+                      keyVaultUri="$(keyVaultUri)" \
+                      appConfigEndpoint="$(appConfigEndpoint)" \
+                      azureAdInstance="$(azureAdInstance)" \
+                      azureAdTenantId="$(azureAdTenantId)" \
+                      azureAdClientId="$(azureAdClientId)" \
+                      azureAdClientSecret="$(azureAdClientSecret)" \
+                      apiManagementGatewayUrl="$(apiManagementGatewayUrl)" \
+                      apiManagementSubscriptionKey="$(apiManagementSubscriptionKey)" \
+                      eventHubNamespaceName="$(eventHubNamespaceName)" \
+                      eventHubName="$(eventHubName)" \
+                      serviceBusNamespaceName="$(serviceBusNamespaceName)"

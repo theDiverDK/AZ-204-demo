@@ -1,0 +1,46 @@
+trigger: none
+
+variables:
+  azureSubscription: 'YOUR-AZURE-DEVOPS-SERVICE-CONNECTION'
+  resourceGroupName: 'rg-conferencehub'
+  location: 'swedencentral'
+  mainWebAppName: 'app-conferencehub'
+  storageAccountName: 'stconferencehub'
+  cosmosAccountName: 'cosmos-conferencehub'
+  cosmosDatabaseName: 'ConferenceHubDB'
+  functionAppName: 'func-conferencehub'
+  azureAdInstance: 'https://login.microsoftonline.com/'
+  azureAdTenantId: 'YOUR_TENANT_ID'
+  azureAdClientId: 'YOUR_CLIENT_ID'
+  azureAdClientSecret: '$(AzureAdClientSecret)'
+
+stages:
+  - stage: Deploy
+    displayName: Deploy Learning Path 06 - Authentication
+    jobs:
+      - job: DeployAuthSettings
+        displayName: Configure authentication settings
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: AzureCLI@2
+            displayName: Deploy Bicep
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment group create \
+                  --resource-group "$(resourceGroupName)" \
+                  --template-file "$(Build.SourcesDirectory)/Learning Path/06-Authentication/infra.bicep" \
+                  --parameters \
+                      location="$(location)" \
+                      mainWebAppName="$(mainWebAppName)" \
+                      storageAccountName="$(storageAccountName)" \
+                      cosmosAccountName="$(cosmosAccountName)" \
+                      cosmosDatabaseName="$(cosmosDatabaseName)" \
+                      functionAppName="$(functionAppName)" \
+                      azureAdInstance="$(azureAdInstance)" \
+                      azureAdTenantId="$(azureAdTenantId)" \
+                      azureAdClientId="$(azureAdClientId)" \
+                      azureAdClientSecret="$(azureAdClientSecret)"

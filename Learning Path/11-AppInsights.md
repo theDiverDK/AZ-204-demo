@@ -1047,3 +1047,9 @@ You've built a production-ready, cloud-native application using the full spectru
 - ✅ Monitoring and optimization (Application Insights)
 
 **You're now ready for the AZ-204 exam and real-world Azure development!**
+
+## Azure DevOps Pipeline (Incremental Deployment)
+- Pipeline: `Learning Path/11-AppInsights/azure-pipelines.yml`
+- Bicep: `Learning Path/11-AppInsights/infra.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `mainWebAppName`, `functionAppName`, `storageAccountName`, `cosmosAccountName`, `cosmosDatabaseName`, `keyVaultUri`, `appConfigEndpoint`, `azureAdTenantId`, `azureAdClientId`, `AzureAdClientSecret`, `apiManagementGatewayUrl`, `ApiManagementSubscriptionKey`, `eventHubNamespaceName`, `eventHubName`, `serviceBusNamespaceName`
+- Notes: The pipeline provisions Application Insights and sets `APPLICATIONINSIGHTS_CONNECTION_STRING` for the web and function apps.

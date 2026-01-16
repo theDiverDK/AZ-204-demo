@@ -908,3 +908,9 @@ In **Learning Path 10**, you'll:
 - Verify connection string in Function App settings
 - Ensure partition count and consumer group are configured
 - Check for throttling or processing errors
+
+## Azure DevOps Pipeline (Incremental Deployment)
+- Pipeline: `Learning Path/09-EventGrid/azure-pipelines.yml`
+- Bicep: `Learning Path/09-EventGrid/infra.bicep`
+- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `mainWebAppName`, `storageAccountName`, `cosmosAccountName`, `cosmosDatabaseName`, `functionAppName`, `keyVaultUri`, `appConfigEndpoint`, `azureAdTenantId`, `azureAdClientId`, `AzureAdClientSecret`, `apiManagementGatewayUrl`, `ApiManagementSubscriptionKey`, `eventHubNamespaceName`, `eventHubName`, `eventGridTopicName`
+- Notes: The pipeline provisions Event Hub + Event Grid Topic and updates web app settings for `EventHub__ConnectionString` and `EventHub__Name`.

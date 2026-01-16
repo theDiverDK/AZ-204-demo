@@ -1,0 +1,70 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  azureSubscription: 'YOUR-AZURE-DEVOPS-SERVICE-CONNECTION'
+  resourceGroupName: 'rg-conferencehub'
+  location: 'swedencentral'
+  appServicePlanName: 'plan-conferencehub'
+  webAppName: 'app-conferencehub'
+  appServicePlanSku: 'B1'
+  appRuntime: 'DOTNETCORE|8.0'
+
+stages:
+  - stage: Deploy
+    displayName: Deploy ConferenceHub
+    jobs:
+      - job: DeployWebApp
+        displayName: Deploy infrastructure and app
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: AzureCLI@2
+            displayName: Deploy infrastructure (Bicep)
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment group create \
+                  --resource-group "$(resourceGroupName)" \
+                  --template-file "$(Build.SourcesDirectory)/ConferenceHub/infra/main.bicep" \
+                  --parameters \
+                      location="$(location)" \
+                      appServicePlanName="$(appServicePlanName)" \
+                      webAppName="$(webAppName)" \
+                      appServicePlanSku="$(appServicePlanSku)" \
+                      appRuntime="$(appRuntime)"
+
+          - task: UseDotNet@2
+            displayName: Use .NET SDK
+            inputs:
+              packageType: sdk
+              version: '10.x'
+
+          - task: DotNetCoreCLI@2
+            displayName: Publish ConferenceHub
+            inputs:
+              command: publish
+              publishWebProjects: false
+              projects: 'ConferenceHub/ConferenceHub.csproj'
+              arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)/publish'
+
+          - task: ArchiveFiles@2
+            displayName: Archive publish output
+            inputs:
+              rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/publish'
+              includeRootFolder: false
+              archiveType: zip
+              archiveFile: '$(Build.ArtifactStagingDirectory)/ConferenceHub.zip'
+              replaceExistingArchive: true
+
+          - task: AzureWebApp@1
+            displayName: Deploy to App Service
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appType: webAppLinux
+              appName: $(webAppName)
+              package: '$(Build.ArtifactStagingDirectory)/ConferenceHub.zip'
