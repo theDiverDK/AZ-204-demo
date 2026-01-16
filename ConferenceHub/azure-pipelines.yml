@@ -68,6 +68,12 @@ stages:
               archiveFile: '$(Build.ArtifactStagingDirectory)/ConferenceHub.zip'
               replaceExistingArchive: true
 
+          - task: PublishPipelineArtifact@1
+            displayName: Publish deployment artifact
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/ConferenceHub.zip'
+              artifact: 'conferencehub-drop'
+
           - task: AzureWebApp@1
             displayName: Deploy to App Service
             inputs:
