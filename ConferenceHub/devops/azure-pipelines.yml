@@ -46,7 +46,7 @@ stages:
               connectedServiceName: $(azureServiceConnectionName)
               location: $(location)
               resourceGroupName: $(resourceGroupName)
-              csmFile: .azure/bicep/infrastructure.bicep
+              csmFile: main.bicep
               overrideParameters: 
                 -appName $(appName)
                 -env $(environment)
