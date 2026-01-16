@@ -17,6 +17,7 @@ variables:
   resourceGroupName: 'rg-conferencehub'
   appServicePlanName: 'plan-conferencehub'
   appName: 'app-conferencehub'
+  
   appServicePlanSku: 'S1'
   appRuntime: 'DOTNETCORE|10.0'
   appType: 'webApp'
@@ -52,7 +53,7 @@ stages:
               overrideParameters: 
                 -appServicePlanName $(appServicePlanName)
                 -webAppName $(appName)
-                
+
               deploymentOutputs: infrastructureAsCodeOutputs
 
   - stage: 

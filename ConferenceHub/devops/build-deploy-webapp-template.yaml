@@ -22,14 +22,14 @@ steps:
     displayName: 'Restore Nuget Packages'
     inputs:
       command: 'restore'
-      projects: $(System.DefaultWorkingDirectory)/src/WebApps/${{ parameters.webAppName }}/*.csproj
+      projects: '$(System.DefaultWorkingDirectory)/ConferenceHub/*.csproj'  
       feedsToUse: 'select'
 
   - task: DotNetCoreCLI@2
     displayName: 'Build and Publish'
     inputs:
       command: 'publish'
-      projects: $(System.DefaultWorkingDirectory)/src/WebApps/${{ parameters.webAppName }}/*.csproj
+      projects: '$(System.DefaultWorkingDirectory)/ConferenceHub/*.csproj'
       publishWebProjects: false
       arguments: "-o $(Build.ArtifactStagingDirectory)/${{ parameters.webAppName }} --configuration Release"
 
