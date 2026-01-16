@@ -39,7 +39,7 @@ stages:
               connectedServiceName: $(azureServiceConnectionName)
               location: $(location)
               resourceGroupName: $(resourceGroupName)
-              csmFile: ConferenceHub/infra/main.bicep
+              csmFile: ConferenceHub/devops/main.bicep
               overrideParameters: 
                 -appServicePlanName $(appServicePlanName)
                 -webAppName $(webAppName)
@@ -54,7 +54,7 @@ stages:
     jobs:
       - job: Deploy_App_job
         steps:
-          - template: .ado/deploy-webapp-template.yaml
+          - template: ConferenceHub/devops/build-deploy-webapp-template.yaml
             parameters:
               webAppName: 'ConferenceHub'
               appServiceName: $(webAppName)
