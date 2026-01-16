@@ -62,7 +62,7 @@ stages:
     jobs:
       - job: Deploy_App_job
         steps:
-          - template: ConferenceHub/devops/build-deploy-webapp-template.yaml
+          - template: build-deploy-webapp-template.yaml
             parameters:
               webAppName: 'ConferenceHub'
               appServiceName: $(webAppName)
