@@ -16,11 +16,12 @@ variables:
   location: 'swedencentral'
   resourceGroupName: 'rg-conferencehub'
   appServicePlanName: 'plan-conferencehub'
-  webAppName: 'app-conferencehub'
+  appName: 'app-conferencehub'
   appServicePlanSku: 'S1'
   appRuntime: 'DOTNETCORE|10.0'
   appType: 'webApp'
   System.Debug: true
+  env: demo
 
 pr: none
 
@@ -57,16 +58,12 @@ stages:
     displayName: 'Build/Depoy WebApplication1 webapp'
     dependsOn: 'Deploy_Infrastructure_stage'
 
-    variables:
-      webAppName: WebApplication1
-      applicationName: az204
-
     jobs:
       - job:
         steps:
           - template: build-deploy-webapp-template.yaml
             parameters:
-              webAppName: $(webAppName)
+              webAppName: $(appName)
               appServiceName: $(appServicePlanName)
               appType: webApp
               azureServiceConnectionName: $(azureServiceConnectionName)
