@@ -3,7 +3,7 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 param appServicePlanName string
 param webAppName string
-param appServicePlanSku string = 'B1'
+param appServicePlanSku string = 'S1'
 param appRuntime string = 'DOTNETCORE|10.0'
 param enableSystemIdentity bool = true
 param appSettings object = {}
@@ -20,7 +20,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   location: location
   sku: {
     name: appServicePlanSku
-    tier: appServicePlanSku == 'F1' ? 'Free' : 'Basic'
+    tier: appServicePlanSku == 'F1' ? 'Free' : 'Standard'
     size: appServicePlanSku
     capacity: 1
   }

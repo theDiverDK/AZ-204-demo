@@ -9,7 +9,7 @@ variables:
   location: 'swedencentral'
   appServicePlanName: 'plan-conferencehub'
   webAppName: 'app-conferencehub'
-  appServicePlanSku: 'B1'
+  appServicePlanSku: 'S1'
   appRuntime: 'DOTNETCORE|10.0'
 
 stages:
