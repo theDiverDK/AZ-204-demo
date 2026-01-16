@@ -19,7 +19,7 @@ stages:
         steps:
           - template: build-deploy-webapp-template.yaml
             parameters:
-              webAppName: 'ConferenceHub'
+              webAppName: $(appName)
               appServiceName: $(webAppName)
               appType: $(appType)
               azureServiceConnectionName: $(azureServiceConnectionName)
