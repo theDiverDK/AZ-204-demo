@@ -56,17 +56,3 @@ stages:
 
               deploymentOutputs: infrastructureAsCodeOutputs
 
-  - stage: 
-    displayName: 'Build/Depoy WebApplication1 webapp'
-    dependsOn: 'Deploy_Infrastructure_stage'
-
-    jobs:
-      - job:
-        steps:
-          - template: build-deploy-webapp-template.yaml
-            parameters:
-              webAppName: $(appName)
-              appServiceName: $(appServicePlanName)
-              appType: webApp
-              azureServiceConnectionName: $(azureServiceConnectionName)
-

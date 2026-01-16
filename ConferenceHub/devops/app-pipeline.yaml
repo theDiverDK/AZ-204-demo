@@ -1,0 +1,25 @@
+trigger: none
+
+pool:
+  name: 'Minecraft server 2'
+ # vmImage: 'ubuntu-latest'
+
+variables:
+  azureServiceConnectionName: 'Azure Service Connection'
+  webAppName: 'app-conferencehub'
+  appType: 'webAppLinux'
+
+pr: none
+
+stages:
+  - stage: Deploy_App_stage
+    displayName: 'Deploy Application'
+    jobs:
+      - job: Deploy_App_job
+        steps:
+          - template: ConferenceHub/devops/build-deploy-webapp-template.yaml
+            parameters:
+              webAppName: 'ConferenceHub'
+              appServiceName: $(webAppName)
+              appType: $(appType)
+              azureServiceConnectionName: $(azureServiceConnectionName)
