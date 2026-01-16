@@ -50,8 +50,9 @@ stages:
               resourceGroupName: $(resourceGroupName)
               csmFile: 'ConferenceHub/devops/main.bicep'
               overrideParameters: 
-                -appName $(appName)
-                -env $(environment)
+                -appServicePlanName $(appServicePlanName)
+                -webAppName $(appName)
+                
               deploymentOutputs: infrastructureAsCodeOutputs
 
   - stage: 
