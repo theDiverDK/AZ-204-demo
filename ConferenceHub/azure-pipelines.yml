@@ -12,6 +12,8 @@ variables:
   appServicePlanSku: 'S1'
   appRuntime: 'DOTNETCORE|10.0'
   appCommandLine: './ConferenceHub'
+  publishDir: '$(Build.SourcesDirectory)/.pipeline/publish'
+  deployZip: '$(Build.ArtifactStagingDirectory)/ConferenceHub.zip'
 
 stages:
   - stage: Deploy
@@ -46,32 +48,37 @@ stages:
               packageType: sdk
               version: '10.x'
 
+          - script: |
+              rm -rf "$(publishDir)"
+              mkdir -p "$(publishDir)"
+            displayName: Prepare publish directory
+
           - task: DotNetCoreCLI@2
             displayName: Publish ConferenceHub
             inputs:
               command: publish
               publishWebProjects: false
               projects: 'ConferenceHub/ConferenceHub.csproj'
-              arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)/publish -r linux-x64 --self-contained true'
+              arguments: '--configuration Release --output $(publishDir) -r linux-x64 --self-contained true'
 
           - script: |
               echo "Published files:"
-              ls -la "$(Build.ArtifactStagingDirectory)/publish"
+              ls -la "$(publishDir)"
             displayName: Inspect publish output
 
           - task: ArchiveFiles@2
             displayName: Archive publish output
             inputs:
-              rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/publish'
+              rootFolderOrFile: '$(publishDir)'
               includeRootFolder: false
               archiveType: zip
-              archiveFile: '$(Build.ArtifactStagingDirectory)/ConferenceHub.zip'
+              archiveFile: '$(deployZip)'
               replaceExistingArchive: true
 
           - task: PublishPipelineArtifact@1
             displayName: Publish deployment artifact
             inputs:
-              targetPath: '$(Build.ArtifactStagingDirectory)/ConferenceHub.zip'
+              targetPath: '$(deployZip)'
               artifact: 'conferencehub-drop'
 
           - task: AzureWebApp@1
@@ -80,4 +87,4 @@ stages:
               azureSubscription: $(azureSubscription)
               appType: webAppLinux
               appName: $(webAppName)
-              package: '$(Build.ArtifactStagingDirectory)/ConferenceHub.zip'
+              package: '$(deployZip)'
