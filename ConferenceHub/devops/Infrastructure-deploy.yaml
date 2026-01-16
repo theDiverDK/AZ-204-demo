@@ -29,7 +29,6 @@ pr: none
 stages:
   - stage: 
     displayName: 'Build/Depoy WebApplication1 webapp'
-    dependsOn: 'Deploy_Infrastructure_stage'
 
     jobs:
       - job:
