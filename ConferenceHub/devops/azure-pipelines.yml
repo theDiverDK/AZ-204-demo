@@ -21,7 +21,7 @@ variables:
   appRuntime: 'DOTNETCORE|10.0'
   appType: 'webApp'
   System.Debug: true
-  env: demo
+  environment: demo
 
 pr: none
 
