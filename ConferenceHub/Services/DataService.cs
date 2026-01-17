@@ -16,55 +16,17 @@ namespace ConferenceHub.Services
 
     public class DataService : IDataService
     {
-        private readonly string _sessionsFilePath;
         private readonly string _seedSessionsFilePath;
-        private readonly string _registrationsFilePath;
         private List<Session> _sessions;
         private List<Registration> _registrations;
         private readonly SemaphoreSlim _semaphore = new(1, 1);
 
         public DataService(IWebHostEnvironment env)
         {
-            var homePath = Environment.GetEnvironmentVariable("HOME");
-            var writableBasePath = ResolveWritableBasePath(env, homePath);
-            _sessionsFilePath = Path.Combine(writableBasePath, "data", "sessions.json");
             _seedSessionsFilePath = Path.Combine(env.ContentRootPath, "Data", "sessions.json");
-            _registrationsFilePath = Path.Combine(writableBasePath, "data", "registrations.json");
             _sessions = new List<Session>();
             _registrations = new List<Registration>();
             LoadSessionsAsync().Wait();
-            LoadRegistrationsAsync().Wait();
-        }
-
-        private static string ResolveWritableBasePath(IWebHostEnvironment env, string? homePath)
-        {
-            if (env.IsDevelopment() || string.IsNullOrWhiteSpace(homePath))
-            {
-                return ResolveFromContentRoot(env.ContentRootPath);
-            }
-
-            var normalizedHome = homePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var wwwrootPath = Path.Combine(Path.DirectorySeparatorChar.ToString(), "home", "site", "wwwroot");
-            if (normalizedHome.EndsWith(wwwrootPath, StringComparison.OrdinalIgnoreCase) ||
-                normalizedHome.EndsWith(Path.Combine("site", "wwwroot"), StringComparison.OrdinalIgnoreCase))
-            {
-                return Path.DirectorySeparatorChar + "home";
-            }
-
-            return normalizedHome;
-        }
-
-        private static string ResolveFromContentRoot(string contentRootPath)
-        {
-            var normalizedRoot = contentRootPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var wwwrootPath = Path.Combine(Path.DirectorySeparatorChar.ToString(), "home", "site", "wwwroot");
-            if (normalizedRoot.EndsWith(wwwrootPath, StringComparison.OrdinalIgnoreCase) ||
-                normalizedRoot.EndsWith(Path.Combine("site", "wwwroot"), StringComparison.OrdinalIgnoreCase))
-            {
-                return Path.DirectorySeparatorChar + "home";
-            }
-
-            return normalizedRoot;
         }
 
         private async Task LoadSessionsAsync()
@@ -76,13 +38,6 @@ namespace ConferenceHub.Services
                     PropertyNameCaseInsensitive = true
                 };
 
-                if (File.Exists(_sessionsFilePath))
-                {
-                    var jsonContent = await File.ReadAllTextAsync(_sessionsFilePath);
-                    _sessions = JsonSerializer.Deserialize<List<Session>>(jsonContent, options) ?? new List<Session>();
-                    return;
-                }
-
                 if (File.Exists(_seedSessionsFilePath))
                 {
                     var jsonContent = await File.ReadAllTextAsync(_seedSessionsFilePath);
@@ -93,61 +48,6 @@ namespace ConferenceHub.Services
             {
                 _sessions = new List<Session>();
             }
-        }
-
-        private async Task SaveSessionsAsync()
-        {
-            var options = new JsonSerializerOptions 
-            { 
-                WriteIndented = true,
-                PropertyNameCaseInsensitive = true
-            };
-            var jsonContent = JsonSerializer.Serialize(_sessions, options);
-            var sessionsDirectory = Path.GetDirectoryName(_sessionsFilePath);
-            if (!string.IsNullOrWhiteSpace(sessionsDirectory))
-            {
-                Directory.CreateDirectory(sessionsDirectory);
-            }
-            await File.WriteAllTextAsync(_sessionsFilePath, jsonContent);
-        }
-
-        private async Task LoadRegistrationsAsync()
-        {
-            try
-            {
-                if (!File.Exists(_registrationsFilePath))
-                {
-                    _registrations = new List<Registration>();
-                    return;
-                }
-
-                var jsonContent = await File.ReadAllTextAsync(_registrationsFilePath);
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-                _registrations = JsonSerializer.Deserialize<List<Registration>>(jsonContent, options) ?? new List<Registration>();
-            }
-            catch (Exception)
-            {
-                _registrations = new List<Registration>();
-            }
-        }
-
-        private async Task SaveRegistrationsAsync()
-        {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNameCaseInsensitive = true
-            };
-            var jsonContent = JsonSerializer.Serialize(_registrations, options);
-            var registrationsDirectory = Path.GetDirectoryName(_registrationsFilePath);
-            if (!string.IsNullOrWhiteSpace(registrationsDirectory))
-            {
-                Directory.CreateDirectory(registrationsDirectory);
-            }
-            await File.WriteAllTextAsync(_registrationsFilePath, jsonContent);
         }
 
         public async Task<List<Session>> GetSessionsAsync()
@@ -183,7 +83,6 @@ namespace ConferenceHub.Services
             {
                 session.Id = _sessions.Any() ? _sessions.Max(s => s.Id) + 1 : 1;
                 _sessions.Add(session);
-                await SaveSessionsAsync();
             }
             finally
             {
@@ -201,7 +100,6 @@ namespace ConferenceHub.Services
                 {
                     _sessions.Remove(existingSession);
                     _sessions.Add(session);
-                    await SaveSessionsAsync();
                 }
             }
             finally
@@ -219,7 +117,6 @@ namespace ConferenceHub.Services
                 if (session != null)
                 {
                     _sessions.Remove(session);
-                    await SaveSessionsAsync();
                 }
             }
             finally
@@ -249,14 +146,12 @@ namespace ConferenceHub.Services
                 registration.Id = _registrations.Any() ? _registrations.Max(r => r.Id) + 1 : 1;
                 registration.RegisteredAt = DateTime.Now;
                 _registrations.Add(registration);
-                await SaveRegistrationsAsync();
 
                 // Update session registration count
                 var session = _sessions.FirstOrDefault(s => s.Id == registration.SessionId);
                 if (session != null)
                 {
                     session.CurrentRegistrations++;
-                    await SaveSessionsAsync();
                 }
             }
             finally
