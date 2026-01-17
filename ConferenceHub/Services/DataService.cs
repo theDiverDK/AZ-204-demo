@@ -37,15 +37,31 @@ namespace ConferenceHub.Services
         {
             if (env.IsDevelopment() || string.IsNullOrWhiteSpace(homePath))
             {
-                return env.ContentRootPath;
+                return ResolveFromContentRoot(env.ContentRootPath);
             }
 
-            if (homePath.EndsWith(Path.Combine("site", "wwwroot"), StringComparison.OrdinalIgnoreCase))
+            var normalizedHome = homePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var wwwrootPath = Path.Combine(Path.DirectorySeparatorChar.ToString(), "home", "site", "wwwroot");
+            if (normalizedHome.EndsWith(wwwrootPath, StringComparison.OrdinalIgnoreCase) ||
+                normalizedHome.EndsWith(Path.Combine("site", "wwwroot"), StringComparison.OrdinalIgnoreCase))
             {
                 return Path.DirectorySeparatorChar + "home";
             }
 
-            return homePath;
+            return normalizedHome;
+        }
+
+        private static string ResolveFromContentRoot(string contentRootPath)
+        {
+            var normalizedRoot = contentRootPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var wwwrootPath = Path.Combine(Path.DirectorySeparatorChar.ToString(), "home", "site", "wwwroot");
+            if (normalizedRoot.EndsWith(wwwrootPath, StringComparison.OrdinalIgnoreCase) ||
+                normalizedRoot.EndsWith(Path.Combine("site", "wwwroot"), StringComparison.OrdinalIgnoreCase))
+            {
+                return Path.DirectorySeparatorChar + "home";
+            }
+
+            return normalizedRoot;
         }
 
         private async Task LoadSessionsAsync()
