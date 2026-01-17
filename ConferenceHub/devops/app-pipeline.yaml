@@ -1,5 +1,12 @@
 trigger:
-  - main
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - ConferenceHub/**
+    exclude:
+      - Learning Path/**
 
 pool:
   name: 'Minecraft server 2'
