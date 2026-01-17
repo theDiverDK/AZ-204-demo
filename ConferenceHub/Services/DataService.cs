@@ -17,13 +17,19 @@ namespace ConferenceHub.Services
     public class DataService : IDataService
     {
         private readonly string _sessionsFilePath;
+        private readonly string _seedSessionsFilePath;
         private List<Session> _sessions;
         private List<Registration> _registrations;
         private readonly SemaphoreSlim _semaphore = new(1, 1);
 
         public DataService(IWebHostEnvironment env)
         {
-            _sessionsFilePath = Path.Combine(env.ContentRootPath, "Data", "sessions.json");
+            var homePath = Environment.GetEnvironmentVariable("HOME");
+            var writableBasePath = env.IsDevelopment() || string.IsNullOrWhiteSpace(homePath)
+                ? env.ContentRootPath
+                : homePath;
+            _sessionsFilePath = Path.Combine(writableBasePath, "data", "sessions.json");
+            _seedSessionsFilePath = Path.Combine(env.ContentRootPath, "Data", "sessions.json");
             _sessions = new List<Session>();
             _registrations = new List<Registration>();
             LoadSessionsAsync().Wait();
@@ -33,13 +39,21 @@ namespace ConferenceHub.Services
         {
             try
             {
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
                 if (File.Exists(_sessionsFilePath))
                 {
                     var jsonContent = await File.ReadAllTextAsync(_sessionsFilePath);
-                    var options = new JsonSerializerOptions 
-                    { 
-                        PropertyNameCaseInsensitive = true 
-                    };
+                    _sessions = JsonSerializer.Deserialize<List<Session>>(jsonContent, options) ?? new List<Session>();
+                    return;
+                }
+
+                if (File.Exists(_seedSessionsFilePath))
+                {
+                    var jsonContent = await File.ReadAllTextAsync(_seedSessionsFilePath);
                     _sessions = JsonSerializer.Deserialize<List<Session>>(jsonContent, options) ?? new List<Session>();
                 }
             }
@@ -57,6 +71,11 @@ namespace ConferenceHub.Services
                 PropertyNameCaseInsensitive = true
             };
             var jsonContent = JsonSerializer.Serialize(_sessions, options);
+            var sessionsDirectory = Path.GetDirectoryName(_sessionsFilePath);
+            if (!string.IsNullOrWhiteSpace(sessionsDirectory))
+            {
+                Directory.CreateDirectory(sessionsDirectory);
+            }
             await File.WriteAllTextAsync(_sessionsFilePath, jsonContent);
         }
 
