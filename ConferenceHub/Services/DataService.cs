@@ -25,14 +25,27 @@ namespace ConferenceHub.Services
         public DataService(IWebHostEnvironment env)
         {
             var homePath = Environment.GetEnvironmentVariable("HOME");
-            var writableBasePath = env.IsDevelopment() || string.IsNullOrWhiteSpace(homePath)
-                ? env.ContentRootPath
-                : homePath;
+            var writableBasePath = ResolveWritableBasePath(env, homePath);
             _sessionsFilePath = Path.Combine(writableBasePath, "data", "sessions.json");
             _seedSessionsFilePath = Path.Combine(env.ContentRootPath, "Data", "sessions.json");
             _sessions = new List<Session>();
             _registrations = new List<Registration>();
             LoadSessionsAsync().Wait();
+        }
+
+        private static string ResolveWritableBasePath(IWebHostEnvironment env, string? homePath)
+        {
+            if (env.IsDevelopment() || string.IsNullOrWhiteSpace(homePath))
+            {
+                return env.ContentRootPath;
+            }
+
+            if (homePath.EndsWith(Path.Combine("site", "wwwroot"), StringComparison.OrdinalIgnoreCase))
+            {
+                return Path.DirectorySeparatorChar + "home";
+            }
+
+            return homePath;
         }
 
         private async Task LoadSessionsAsync()
