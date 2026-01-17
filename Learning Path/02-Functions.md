@@ -22,7 +22,7 @@ In this learning path, you'll enhance the ConferenceHub application by adding se
 
 1. **Create a new folder for the Functions project**:
 ```powershell
-cd "c:\Users\Admin\AZ-204 demo"
+cd "<repo-root>"
 mkdir ConferenceHub.Functions
 cd ConferenceHub.Functions
 ```
@@ -295,7 +295,7 @@ az functionapp create `
   --storage-account stconferencehubfunc `
   --consumption-plan-location eastus `
   --runtime dotnet-isolated `
-  --runtime-version 8 `
+  --runtime-version 10 `
   --functions-version 4 `
   --os-type Windows
 ```
