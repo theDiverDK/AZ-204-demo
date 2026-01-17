@@ -11,7 +11,7 @@ In this learning path, you'll enhance the ConferenceHub application by adding se
 ## Prerequisites
 - Completed Learning Path 1 (Web App deployed to Azure App Service)
 - Azure CLI installed and logged in
-- .NET 8 SDK installed
+- .NET 10 SDK installed
 - VS Code with Azure Functions extension
 
 ---
@@ -29,7 +29,7 @@ cd ConferenceHub.Functions
 
 2. **Initialize the Functions project**:
 ```powershell
-func init --worker-runtime dotnet-isolated --target-framework net8.0
+func init --worker-runtime dotnet-isolated --target-framework net10.0
 ```
 
 3. **Open the project in VS Code**:
