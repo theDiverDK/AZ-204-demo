@@ -11,8 +11,24 @@ In this learning path, you'll enhance the ConferenceHub application by adding se
 ## Prerequisites
 - Completed Learning Path 1 (Web App deployed to Azure App Service)
 - Azure CLI installed and logged in
-- .NET 10 SDK installed
+- .NET 8 SDK installed
 - VS Code with Azure Functions extension
+
+## Repo-First Copy Workflow
+All new/changed files for Learning Path 2 live under `Learning Path/02-Functions`. You can copy them into your working projects instead of retyping.
+
+**Function app files (copy into your Functions project)**:
+- `Learning Path/02-Functions/ConferenceHubFunctions/SendConfirmation.cs`
+- `Learning Path/02-Functions/ConferenceHubFunctions/CloseRegistrations.cs`
+- `Learning Path/02-Functions/ConferenceHubFunctions/Models/RegistrationRequest.cs`
+- `Learning Path/02-Functions/ConferenceHubFunctions/Models/Session.cs`
+
+**Web app files (copy into your ConferenceHub web app)**:
+- `Learning Path/02-Functions/ConferenceHub/Program.cs`
+- `Learning Path/02-Functions/ConferenceHub/Controllers/SessionsController.cs`
+- `Learning Path/02-Functions/ConferenceHub/Models/AzureFunctionsConfig.cs`
+- `Learning Path/02-Functions/ConferenceHub/appsettings.json`
+- `Learning Path/02-Functions/ConferenceHub/appsettings.Development.json`
 
 ---
 
@@ -21,32 +37,66 @@ In this learning path, you'll enhance the ConferenceHub application by adding se
 ### Step 1: Create Functions App Locally
 
 1. **Create a new folder for the Functions project**:
+**PowerShell**
 ```powershell
 cd "<repo-root>"
 mkdir ConferenceHub.Functions
 cd ConferenceHub.Functions
 ```
-
-2. **Initialize the Functions project**:
-```powershell
-func init --worker-runtime dotnet-isolated --target-framework net10.0
+**Bash**
+```bash
+cd "<repo-root>"
+mkdir -p ConferenceHub.Functions
+cd ConferenceHub.Functions
 ```
 
-3. **Open the project in VS Code**:
+2. **Initialize the Functions project**:
+**PowerShell**
 ```powershell
+func init --worker-runtime dotnet-isolated --target-framework net8.0
+```
+**Bash**
+```bash
+func init --worker-runtime dotnet-isolated --target-framework net8.0
+```
+
+3. **Copy the provided function files** (from `Learning Path/02-Functions/ConferenceHubFunctions` into your Functions project):
+**PowerShell**
+```powershell
+# From repo root
+Copy-Item -Path "<repo-root>/Learning Path/02-Functions/ConferenceHubFunctions/*" -Destination "<repo-root>/ConferenceHub.Functions" -Recurse -Force
+```
+**Bash**
+```bash
+# From repo root
+cp -R "<repo-root>/Learning Path/02-Functions/ConferenceHubFunctions/." "<repo-root>/ConferenceHub.Functions/"
+```
+
+4. **Open the project in VS Code**:
+**PowerShell**
+```powershell
+code .
+```
+**Bash**
+```bash
 code .
 ```
 
 ### Step 2: Create HTTP-Triggered Function (Send Confirmation)
 
 1. **Create the HTTP function**:
+**PowerShell**
 ```powershell
+func new --name SendConfirmation --template "HTTP trigger" --authlevel "function"
+```
+**Bash**
+```bash
 func new --name SendConfirmation --template "HTTP trigger" --authlevel "function"
 ```
 
 2. **Create a Models folder and add the Registration DTO**:
 
-Create `Models/RegistrationRequest.cs`:
+Create `Models/RegistrationRequest.cs` (also available at `Learning Path/02-Functions/ConferenceHubFunctions/Models/RegistrationRequest.cs`):
 ```csharp
 namespace ConferenceHub.Functions.Models
 {
@@ -64,7 +114,7 @@ namespace ConferenceHub.Functions.Models
 
 3. **Update the SendConfirmation function**:
 
-Replace the contents of `SendConfirmation.cs`:
+Replace the contents of `SendConfirmation.cs` (also available at `Learning Path/02-Functions/ConferenceHubFunctions/SendConfirmation.cs`):
 ```csharp
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -158,13 +208,18 @@ namespace ConferenceHub.Functions
 ### Step 3: Create Timer-Triggered Function (Close Registration)
 
 1. **Create the Timer function**:
+**PowerShell**
 ```powershell
+func new --name CloseRegistrations --template "Timer trigger"
+```
+**Bash**
+```bash
 func new --name CloseRegistrations --template "Timer trigger"
 ```
 
 2. **Create Session model for the function**:
 
-Create `Models/Session.cs`:
+Create `Models/Session.cs` (also available at `Learning Path/02-Functions/ConferenceHubFunctions/Models/Session.cs`):
 ```csharp
 namespace ConferenceHub.Functions.Models
 {
@@ -180,7 +235,7 @@ namespace ConferenceHub.Functions.Models
 
 3. **Update the CloseRegistrations function**:
 
-Replace the contents of `CloseRegistrations.cs`:
+Replace the contents of `CloseRegistrations.cs` (also available at `Learning Path/02-Functions/ConferenceHubFunctions/CloseRegistrations.cs`):
 ```csharp
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
@@ -252,11 +307,17 @@ namespace ConferenceHub.Functions
 ### Step 4: Test Locally
 
 1. **Start the Functions runtime**:
+**PowerShell**
 ```powershell
+func start
+```
+**Bash**
+```bash
 func start
 ```
 
 2. **Test the HTTP function** (in a new terminal):
+**PowerShell**
 ```powershell
 $body = @{
     sessionId = 1
@@ -269,6 +330,19 @@ $body = @{
 
 Invoke-RestMethod -Uri "http://localhost:7071/api/SendConfirmation" -Method Post -Body $body -ContentType "application/json"
 ```
+**Bash**
+```bash
+curl -s -X POST "http://localhost:7071/api/SendConfirmation" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": 1,
+    "sessionTitle": "Building Cloud-Native Applications",
+    "attendeeName": "Test User",
+    "attendeeEmail": "test@example.com",
+    "sessionStartTime": "2025-12-01T09:00:00",
+    "room": "Main Hall A"
+  }'
+```
 
 3. **Observe the timer function** - it will run based on the CRON schedule (or manually trigger it in the Azure portal later)
 
@@ -276,57 +350,131 @@ Invoke-RestMethod -Uri "http://localhost:7071/api/SendConfirmation" -Method Post
 
 ## Part 2: Deploy Azure Functions to Azure
 
+### Step 0: Set Azure Variables
+
+**PowerShell**
+```powershell
+$resourceGroupName = "rg-conferencehub"
+$location = "eastus"
+$random = Get-Random
+$functionStorageAccountName = "stconfhubfunc$random"
+$functionAppName = "func-conferencehub-$random"
+$webAppName = "conferencehub-demo-$random"
+```
+**Bash**
+```bash
+resource_group_name="rg-conferencehub"
+location="eastus"
+random="$RANDOM"
+function_storage_account_name="stconfhubfunc${random}"
+function_app_name="func-conferencehub-${random}"
+web_app_name="conferencehub-demo-${random}"
+```
+
 ### Step 1: Create Azure Resources
 
 1. **Create a Storage Account** (required for Functions):
+**PowerShell**
 ```powershell
 az storage account create `
-  --name stconferencehubfunc `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $functionStorageAccountName `
+  --resource-group $resourceGroupName `
+  --location $location `
+  --sku Standard_LRS
+```
+**Bash**
+```bash
+az storage account create \
+  --name "$function_storage_account_name" \
+  --resource-group "$resource_group_name" \
+  --location "$location" \
   --sku Standard_LRS
 ```
 
 2. **Create a Function App**:
+**PowerShell**
 ```powershell
 az functionapp create `
-  --name func-conferencehub-[yourname] `
-  --resource-group rg-conferencehub `
-  --storage-account stconferencehubfunc `
-  --consumption-plan-location eastus `
+  --name $functionAppName `
+  --resource-group $resourceGroupName `
+  --storage-account $functionStorageAccountName `
+  --consumption-plan-location $location `
   --runtime dotnet-isolated `
-  --runtime-version 10 `
+  --runtime-version 8 `
   --functions-version 4 `
   --os-type Windows
 ```
-*Replace [yourname] with your unique identifier*
+**Bash**
+```bash
+az functionapp create \
+  --name "$function_app_name" \
+  --resource-group "$resource_group_name" \
+  --storage-account "$function_storage_account_name" \
+  --consumption-plan-location "$location" \
+  --runtime dotnet-isolated \
+  --runtime-version 8 \
+  --functions-version 4 \
+  --os-type Windows
+```
 
 ### Step 2: Deploy the Functions
 
 1. **Publish the Functions app**:
+**PowerShell**
 ```powershell
-func azure functionapp publish func-conferencehub-[yourname]
+func azure functionapp publish $functionAppName
+```
+**Bash**
+```bash
+func azure functionapp publish "$function_app_name"
 ```
 
 2. **Get the function URL and key**:
+**PowerShell**
 ```powershell
 # Get the function key
-az functionapp function keys list `
-  --name func-conferencehub-[yourname] `
-  --resource-group rg-conferencehub `
-  --function-name SendConfirmation
+$functionKey = (az functionapp function keys list `
+  --name $functionAppName `
+  --resource-group $resourceGroupName `
+  --function-name SendConfirmation | ConvertFrom-Json).default
 
 # The function URL will be:
-# https://func-conferencehub-[yourname].azurewebsites.net/api/SendConfirmation?code=[function-key]
+# https://$functionAppName.azurewebsites.net/api/SendConfirmation?code=$functionKey
+```
+**Bash**
+```bash
+# Get the function key
+function_key=$(az functionapp function keys list \
+  --name "$function_app_name" \
+  --resource-group "$resource_group_name" \
+  --function-name SendConfirmation \
+  --query "default" -o tsv)
+
+# The function URL will be:
+# https://$function_app_name.azurewebsites.net/api/SendConfirmation?code=$function_key
 ```
 
 ---
 
 ## Part 3: Update Web App to Call Azure Function
 
+### Step 0: Copy Web App Updates (Fast Path)
+
+Copy the prepared web app files from `Learning Path/02-Functions/ConferenceHub` into your `ConferenceHub` web app project:
+**PowerShell**
+```powershell
+# From repo root
+Copy-Item -Path "Learning Path/02-Functions/ConferenceHub/*" -Destination ".\ConferenceHub" -Recurse -Force
+```
+**Bash**
+```bash
+# From repo root
+cp -R "Learning Path/02-Functions/ConferenceHub/." "./ConferenceHub/"
+```
+
 ### Step 1: Add Configuration
 
-1. **Add Function URL to appsettings.json**:
+1. **Add Function URL to appsettings.json** (also available at `Learning Path/02-Functions/ConferenceHub/appsettings.json`):
 
 Open `ConferenceHub/appsettings.json` and add:
 ```json
@@ -345,7 +493,7 @@ Open `ConferenceHub/appsettings.json` and add:
 }
 ```
 
-2. **Create appsettings.Development.json** for local testing:
+2. **Create appsettings.Development.json** for local testing (also available at `Learning Path/02-Functions/ConferenceHub/appsettings.Development.json`):
 ```json
 {
   "Logging": {
@@ -363,7 +511,7 @@ Open `ConferenceHub/appsettings.json` and add:
 
 ### Step 2: Create Function Configuration Model
 
-Create `ConferenceHub/Models/AzureFunctionsConfig.cs`:
+Create `ConferenceHub/Models/AzureFunctionsConfig.cs` (also available at `Learning Path/02-Functions/ConferenceHub/Models/AzureFunctionsConfig.cs`):
 ```csharp
 namespace ConferenceHub.Models
 {
@@ -377,7 +525,7 @@ namespace ConferenceHub.Models
 
 ### Step 3: Register HttpClient and Configuration
 
-Update `ConferenceHub/Program.cs`:
+Update `ConferenceHub/Program.cs` (also available at `Learning Path/02-Functions/ConferenceHub/Program.cs`):
 ```csharp
 using ConferenceHub.Services;
 using ConferenceHub.Models;
@@ -420,7 +568,7 @@ app.Run();
 
 ### Step 4: Update SessionsController
 
-Update `ConferenceHub/Controllers/SessionsController.cs`:
+Update `ConferenceHub/Controllers/SessionsController.cs` (also available at `Learning Path/02-Functions/ConferenceHub/Controllers/SessionsController.cs`):
 ```csharp
 using ConferenceHub.Models;
 using ConferenceHub.Services;
@@ -555,12 +703,21 @@ namespace ConferenceHub.Controllers
 ### Update Azure Web App Configuration
 
 Add the Function URL to the Web App's application settings:
+**PowerShell**
 ```powershell
 az webapp config appsettings set `
-  --name conferencehub-demo-[yourname] `
-  --resource-group rg-conferencehub `
-  --settings AzureFunctions__SendConfirmationUrl="https://func-conferencehub-[yourname].azurewebsites.net/api/SendConfirmation" `
-             AzureFunctions__FunctionKey="[your-function-key]"
+  --name $webAppName `
+  --resource-group $resourceGroupName `
+  --settings AzureFunctions__SendConfirmationUrl="https://$functionAppName.azurewebsites.net/api/SendConfirmation" `
+             AzureFunctions__FunctionKey="$functionKey"
+```
+**Bash**
+```bash
+az webapp config appsettings set \
+  --name "$web_app_name" \
+  --resource-group "$resource_group_name" \
+  --settings AzureFunctions__SendConfirmationUrl="https://$function_app_name.azurewebsites.net/api/SendConfirmation" \
+             AzureFunctions__FunctionKey="$function_key"
 ```
 
 ---
@@ -570,13 +727,25 @@ az webapp config appsettings set `
 ### Step 1: Test Locally
 
 1. **Start the Functions app** (in one terminal):
+**PowerShell**
 ```powershell
+cd ConferenceHub.Functions
+func start
+```
+**Bash**
+```bash
 cd ConferenceHub.Functions
 func start
 ```
 
 2. **Start the Web app** (in another terminal):
+**PowerShell**
 ```powershell
+cd ConferenceHub
+dotnet run
+```
+**Bash**
+```bash
 cd ConferenceHub
 dotnet run
 ```
@@ -589,13 +758,26 @@ dotnet run
 ### Step 2: Test in Azure
 
 1. **Deploy updated Web App**:
+**PowerShell**
 ```powershell
 cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
-  --name conferencehub-demo-[yourname] `
+  --resource-group $resourceGroupName `
+  --name $webAppName `
+  --src ./app.zip
+```
+**Bash**
+```bash
+cd ConferenceHub
+dotnet publish -c Release -o ./publish
+cd publish
+zip -r ../app.zip .
+cd ..
+az webapp deployment source config-zip \
+  --resource-group "$resource_group_name" \
+  --name "$web_app_name" \
   --src ./app.zip
 ```
 
@@ -605,10 +787,17 @@ az webapp deployment source config-zip `
    - Check Application Insights or Function logs
 
 3. **View Function logs**:
+**PowerShell**
 ```powershell
 az functionapp log tail `
-  --name func-conferencehub-[yourname] `
-  --resource-group rg-conferencehub
+  --name $functionAppName `
+  --resource-group $resourceGroupName
+```
+**Bash**
+```bash
+az functionapp log tail \
+  --name "$function_app_name" \
+  --resource-group "$resource_group_name"
 ```
 
 ---
@@ -617,11 +806,20 @@ az functionapp log tail `
 
 ### View Function Execution History
 
+**PowerShell**
 ```powershell
 # View recent function executions
 az functionapp function show `
-  --name func-conferencehub-[yourname] `
-  --resource-group rg-conferencehub `
+  --name $functionAppName `
+  --resource-group $resourceGroupName `
+  --function-name SendConfirmation
+```
+**Bash**
+```bash
+# View recent function executions
+az functionapp function show \
+  --name "$function_app_name" \
+  --resource-group "$resource_group_name" \
   --function-name SendConfirmation
 ```
 
@@ -644,15 +842,6 @@ You've successfully:
 - ✅ Configured the timer to run nightly for closing registrations
 - ✅ Tested the integration end-to-end
 
-## Next Steps
-
-In **Learning Path 3**, you'll:
-- Replace in-memory registration storage with **Azure Cosmos DB**
-- Update the Timer function to actually query and update the database
-- Implement actual email sending using **Azure Communication Services** or **SendGrid**
-
----
-
 ## Troubleshooting
 
 ### Function not triggering
@@ -672,9 +861,3 @@ In **Learning Path 3**, you'll:
 ### Timer running too frequently
 - Verify CRON expression: `0 0 2 * * *` = 2 AM daily
 - For testing, use `0 */5 * * * *` = every 5 minutes
-
-## Azure DevOps Pipeline (Incremental Deployment)
-- Pipeline: `Learning Path/02-Functions/azure-pipelines.yml`
-- Bicep: `Learning Path/02-Functions/infra.bicep`
-- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `functionStorageAccountName`, `functionAppName`, `functionPlanName`, `mainWebAppName`
-- Notes: The pipeline provisions the Function App and updates the web app settings with `AzureFunctions__SendConfirmationUrl` and `AzureFunctions__FunctionKey`.
