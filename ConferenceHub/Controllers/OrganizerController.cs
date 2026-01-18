@@ -70,13 +70,17 @@ namespace ConferenceHub.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Session session)
         {
-            if (id != session.Id)
+            if (id.ToString() != session.Id)
             {
                 return NotFound();
             }
 
             if (ModelState.IsValid)
             {
+                if (session.SessionNumber == 0)
+                {
+                    session.SessionNumber = id;
+                }
                 await _dataService.UpdateSessionAsync(session);
                 TempData["Success"] = "Session updated successfully!";
                 return RedirectToAction(nameof(Index));

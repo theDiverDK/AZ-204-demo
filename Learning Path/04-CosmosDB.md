@@ -83,6 +83,8 @@ az cosmosdb keys list \
   --output tsv
 ```
 
+Save the ConnectionString for later
+
 ### Step 2: Create Database and Containers
 
 PowerShell:
@@ -148,11 +150,13 @@ PowerShell:
 ```powershell
 cd ConferenceHub
 dotnet add package Microsoft.Azure.Cosmos
+dotnet add Newtonsoft.Json
 ```
 Bash:
 ```bash
 cd ConferenceHub
 dotnet add package Microsoft.Azure.Cosmos
+dotnet add Newtonsoft.Json
 ```
 
 ### Step 2: Update Session Model

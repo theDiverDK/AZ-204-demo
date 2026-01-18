@@ -33,15 +33,32 @@ namespace ConferenceHub.Services
         {
             try
             {
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-
                 if (File.Exists(_seedSessionsFilePath))
                 {
                     var jsonContent = await File.ReadAllTextAsync(_seedSessionsFilePath);
-                    _sessions = JsonSerializer.Deserialize<List<Session>>(jsonContent, options) ?? new List<Session>();
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    var legacySessions = JsonSerializer.Deserialize<List<LegacySession>>(jsonContent, options)
+                        ?? new List<LegacySession>();
+
+                    _sessions = legacySessions.Select(s => new Session
+                    {
+                        Id = s.Id.ToString(),
+                        SessionNumber = s.Id,
+                        Title = s.Title,
+                        Speaker = s.Speaker,
+                        StartTime = s.StartTime,
+                        EndTime = s.EndTime,
+                        Room = s.Room,
+                        Description = s.Description,
+                        Capacity = s.Capacity,
+                        CurrentRegistrations = s.CurrentRegistrations,
+                        SlideUrl = s.SlideUrl,
+                        SlideUploadedAt = s.SlideUploadedAt
+                    }).ToList();
                 }
             }
             catch (Exception)
@@ -68,7 +85,7 @@ namespace ConferenceHub.Services
             await _semaphore.WaitAsync();
             try
             {
-                return _sessions.FirstOrDefault(s => s.Id == id);
+                return _sessions.FirstOrDefault(s => s.SessionNumber == id);
             }
             finally
             {
@@ -81,7 +98,8 @@ namespace ConferenceHub.Services
             await _semaphore.WaitAsync();
             try
             {
-                session.Id = _sessions.Any() ? _sessions.Max(s => s.Id) + 1 : 1;
+                session.SessionNumber = _sessions.Any() ? _sessions.Max(s => s.SessionNumber) + 1 : 1;
+                session.Id = session.SessionNumber.ToString();
                 _sessions.Add(session);
             }
             finally
@@ -95,7 +113,7 @@ namespace ConferenceHub.Services
             await _semaphore.WaitAsync();
             try
             {
-                var existingSession = _sessions.FirstOrDefault(s => s.Id == session.Id);
+                var existingSession = _sessions.FirstOrDefault(s => s.SessionNumber == session.SessionNumber);
                 if (existingSession != null)
                 {
                     _sessions.Remove(existingSession);
@@ -113,7 +131,7 @@ namespace ConferenceHub.Services
             await _semaphore.WaitAsync();
             try
             {
-                var session = _sessions.FirstOrDefault(s => s.Id == id);
+                var session = _sessions.FirstOrDefault(s => s.SessionNumber == id);
                 if (session != null)
                 {
                     _sessions.Remove(session);
@@ -143,12 +161,13 @@ namespace ConferenceHub.Services
             await _semaphore.WaitAsync();
             try
             {
-                registration.Id = _registrations.Any() ? _registrations.Max(r => r.Id) + 1 : 1;
+                registration.Id = Guid.NewGuid().ToString();
                 registration.RegisteredAt = DateTime.Now;
                 _registrations.Add(registration);
 
                 // Update session registration count
-                var session = _sessions.FirstOrDefault(s => s.Id == registration.SessionId);
+                var session = _sessions.FirstOrDefault(s => s.Id == registration.SessionId)
+                    ?? _sessions.FirstOrDefault(s => s.SessionNumber.ToString() == registration.SessionId);
                 if (session != null)
                 {
                     session.CurrentRegistrations++;
@@ -158,6 +177,21 @@ namespace ConferenceHub.Services
             {
                 _semaphore.Release();
             }
+        }
+
+        private sealed class LegacySession
+        {
+            public int Id { get; set; }
+            public string Title { get; set; } = string.Empty;
+            public string Speaker { get; set; } = string.Empty;
+            public DateTime StartTime { get; set; }
+            public DateTime EndTime { get; set; }
+            public string Room { get; set; } = string.Empty;
+            public string Description { get; set; } = string.Empty;
+            public int Capacity { get; set; }
+            public int CurrentRegistrations { get; set; }
+            public string? SlideUrl { get; set; }
+            public DateTime? SlideUploadedAt { get; set; }
         }
     }
 }

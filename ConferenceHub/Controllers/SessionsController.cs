@@ -9,20 +9,20 @@ namespace ConferenceHub.Controllers
 {
     public class SessionsController : Controller
     {
-        private readonly IDataService _dataService;
+        private readonly ICosmosDbService _cosmosDbService;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IAuditLogService _auditLogService;
         private readonly AzureFunctionsConfig _functionsConfig;
         private readonly ILogger<SessionsController> _logger;
 
         public SessionsController(
-            IDataService dataService,
+            ICosmosDbService cosmosDbService,
             IHttpClientFactory httpClientFactory,
             IAuditLogService auditLogService,
             IOptions<AzureFunctionsConfig> functionsConfig,
             ILogger<SessionsController> logger)
         {
-            _dataService = dataService;
+            _cosmosDbService = cosmosDbService;
             _httpClientFactory = httpClientFactory;
             _auditLogService = auditLogService;
             _functionsConfig = functionsConfig.Value;
@@ -30,34 +30,64 @@ namespace ConferenceHub.Controllers
         }
 
         // GET: Sessions
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? track, string? level)
         {
-            var sessions = await _dataService.GetSessionsAsync();
+            IEnumerable<Session> sessions;
+            
+            if (!string.IsNullOrEmpty(track) || !string.IsNullOrEmpty(level))
+            {
+                sessions = await _cosmosDbService.GetSessionsByFilterAsync(track, level);
+                ViewBag.SelectedTrack = track;
+                ViewBag.SelectedLevel = level;
+            }
+            else
+            {
+                sessions = await _cosmosDbService.GetSessionsAsync();
+            }
+
+            // Get unique tracks and levels for filter dropdowns
+            var allSessions = await _cosmosDbService.GetSessionsAsync();
+            ViewBag.Tracks = allSessions.Select(s => s.Track).Distinct().OrderBy(t => t).ToList();
+            ViewBag.Levels = allSessions.Select(s => s.Level).Distinct().OrderBy(l => l).ToList();
+
             return View(sessions);
         }
 
         // GET: Sessions/Details/5
-        public async Task<IActionResult> Details(int id)
+        public async Task<IActionResult> Details(string id)
         {
-            var session = await _dataService.GetSessionByIdAsync(id);
+            var session = await _cosmosDbService.GetSessionByIdAsync(id);
             if (session == null)
             {
                 return NotFound();
             }
+
+            // Get actual registration count from Cosmos DB
+            session.CurrentRegistrations = await _cosmosDbService.GetRegistrationCountBySessionAsync(id);
+
             return View(session);
         }
 
         // POST: Sessions/Register
         [HttpPost]
-        public async Task<IActionResult> Register(int sessionId, string attendeeName, string attendeeEmail)
+        public async Task<IActionResult> Register(string sessionId, string attendeeName, string attendeeEmail)
         {
-            var session = await _dataService.GetSessionByIdAsync(sessionId);
+            var session = await _cosmosDbService.GetSessionByIdAsync(sessionId);
             if (session == null)
             {
                 return NotFound();
             }
 
-            if (session.CurrentRegistrations >= session.Capacity)
+            // Check if registration is closed
+            if (session.RegistrationClosed)
+            {
+                TempData["Error"] = "Registration for this session is closed.";
+                return RedirectToAction(nameof(Details), new { id = sessionId });
+            }
+
+            // Get current registration count
+            var currentCount = await _cosmosDbService.GetRegistrationCountBySessionAsync(sessionId);
+            if (currentCount >= session.Capacity)
             {
                 TempData["Error"] = "This session is at full capacity.";
                 return RedirectToAction(nameof(Details), new { id = sessionId });
@@ -66,14 +96,19 @@ namespace ConferenceHub.Controllers
             var registration = new Registration
             {
                 SessionId = sessionId,
+                SessionTitle = session.Title,
                 AttendeeName = attendeeName,
                 AttendeeEmail = attendeeEmail
             };
 
-            await _dataService.AddRegistrationAsync(registration);
+            await _cosmosDbService.AddRegistrationAsync(registration);
 
             // Log to audit table
-            await _auditLogService.LogRegistrationAsync(sessionId, session.Title, attendeeName, attendeeEmail);
+            await _auditLogService.LogRegistrationAsync(
+                session.SessionNumber, 
+                session.Title, 
+                attendeeName, 
+                attendeeEmail);
 
             // Call Azure Function to send confirmation email
             await SendConfirmationEmailAsync(session, attendeeName, attendeeEmail);
@@ -99,7 +134,7 @@ namespace ConferenceHub.Controllers
                     room = session.Room
                 };
 
-                var json = JsonSerializer.Serialize(registrationRequest);
+                var json = System.Text.Json.JsonSerializer.Serialize(registrationRequest);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var url = _functionsConfig.SendConfirmationUrl;
