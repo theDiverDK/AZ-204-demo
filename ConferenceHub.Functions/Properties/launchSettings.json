@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "ConferenceHub_Functions": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7146",
+      "launchBrowser": false
+    }
+  }
+}

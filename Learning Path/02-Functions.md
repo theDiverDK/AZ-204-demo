@@ -64,12 +64,12 @@ func init --worker-runtime dotnet-isolated --target-framework net8.0
 **PowerShell**
 ```powershell
 # From repo root
-Copy-Item -Path "<repo-root>/Learning Path/02-Functions/ConferenceHubFunctions/*" -Destination "<repo-root>/ConferenceHub.Functions" -Recurse -Force
+Copy-Item -Path "../Learning Path/02-Functions/ConferenceHubFunctions/*" -Destination "<repo-root>/ConferenceHub.Functions" -Recurse -Force
 ```
 **Bash**
 ```bash
 # From repo root
-cp -R "<repo-root>/Learning Path/02-Functions/ConferenceHubFunctions/." "<repo-root>/ConferenceHub.Functions/"
+copy -R ../Learning\ Path/02-Functions/ConferenceHubFunctions/. ../ConferenceHub.Functions
 ```
 
 4. **Open the project in VS Code**:
@@ -309,10 +309,14 @@ namespace ConferenceHub.Functions
 1. **Start the Functions runtime**:
 **PowerShell**
 ```powershell
+dotnet add package Microsoft.Azure.Functions.Worker.Extensions.Timer
+
 func start
 ```
 **Bash**
 ```bash
+dotnet add package Microsoft.Azure.Functions.Worker.Extensions.Timer
+
 func start
 ```
 
@@ -354,21 +358,23 @@ curl -s -X POST "http://localhost:7071/api/SendConfirmation" \
 
 **PowerShell**
 ```powershell
-$resourceGroupName = "rg-conferencehub"
-$location = "eastus"
-$random = Get-Random
-$functionStorageAccountName = "stconfhubfunc$random"
-$functionAppName = "func-conferencehub-$random"
-$webAppName = "conferencehub-demo-$random"
+$RG_NAME = "rg-conferencehub"
+$LOCATION = "swedencentral"
+$RANDOM_SUFFIX = Get-Random
+$PLAN_NAME = "plan-conferencehub"
+$FUNCTION_STORAGE_ACCOUNT_NAME = "stconfhubfunc$RANDOM_SUFFIX"
+$FUNCTION_APP_NAME = "func-conferencehub-$RANDOM_SUFFIX"
+$WEB_APP_NAME = "conferencehub-demo-$RANDOM_SUFFIX"
 ```
 **Bash**
 ```bash
-resource_group_name="rg-conferencehub"
-location="eastus"
-random="$RANDOM"
-function_storage_account_name="stconfhubfunc${random}"
-function_app_name="func-conferencehub-${random}"
-web_app_name="conferencehub-demo-${random}"
+RG_NAME="rg-conferencehub"
+LOCATION="swedencentral"
+RANDOM="$RANDOM"
+PLAN_NAME="plan-conferencehub"
+FUNCTION_STORAGE_ACCOUNT_NAME="stconfhubfunc${RANDOM}"
+FUNCTION_APP_NAME="func-conferencehub-${RANDOM}"
+WEB_APP_NAME="conferencehub-demo-${RANDOM}"
 ```
 
 ### Step 1: Create Azure Resources
@@ -377,17 +383,17 @@ web_app_name="conferencehub-demo-${random}"
 **PowerShell**
 ```powershell
 az storage account create `
-  --name $functionStorageAccountName `
-  --resource-group $resourceGroupName `
-  --location $location `
+  --name $FUNCTION_STORAGE_ACCOUNT_NAME `
+  --resource-group $RG_NAME `
+  --location $LOCATION `
   --sku Standard_LRS
 ```
 **Bash**
 ```bash
 az storage account create \
-  --name "$function_storage_account_name" \
-  --resource-group "$resource_group_name" \
-  --location "$location" \
+  --name $FUNCTION_STORAGE_ACCOUNT_NAME \
+  --resource-group $RG_NAME \
+  --location $LOCATION \
   --sku Standard_LRS
 ```
 
@@ -395,26 +401,26 @@ az storage account create \
 **PowerShell**
 ```powershell
 az functionapp create `
-  --name $functionAppName `
-  --resource-group $resourceGroupName `
-  --storage-account $functionStorageAccountName `
-  --consumption-plan-location $location `
+  --name $FUNCTION_APP_NAME `
+  --resource-group $RG_NAME `
+  --storage-account $FUNCTION_STORAGE_ACCOUNT_NAME `
+  --plan $PLAN_NAME `
   --runtime dotnet-isolated `
   --runtime-version 8 `
   --functions-version 4 `
-  --os-type Windows
+  --os-type Linux
 ```
 **Bash**
 ```bash
 az functionapp create \
-  --name "$function_app_name" \
-  --resource-group "$resource_group_name" \
-  --storage-account "$function_storage_account_name" \
-  --consumption-plan-location "$location" \
+  --name $FUNCTION_APP_NAME \
+  --resource-group $RG_NAME \
+  --storage-account $FUNCTION_STORAGE_ACCOUNT_NAME \
+  --plan $PLAN_NAME \
   --runtime dotnet-isolated \
   --runtime-version 8 \
   --functions-version 4 \
-  --os-type Windows
+  --os-type Linux
 ```
 
 ### Step 2: Deploy the Functions
@@ -422,36 +428,36 @@ az functionapp create \
 1. **Publish the Functions app**:
 **PowerShell**
 ```powershell
-func azure functionapp publish $functionAppName
+func azure functionapp publish $FUNCTION_APP_NAME
 ```
 **Bash**
 ```bash
-func azure functionapp publish "$function_app_name"
+func azure functionapp publish $FUNCTION_APP_NAME
 ```
 
 2. **Get the function URL and key**:
 **PowerShell**
 ```powershell
 # Get the function key
-$functionKey = (az functionapp function keys list `
-  --name $functionAppName `
-  --resource-group $resourceGroupName `
+$FUNCTION_KEY = (az functionapp function keys list `
+  --name $FUNCTION_APP_NAME `
+  --resource-group $RG_NAME `
   --function-name SendConfirmation | ConvertFrom-Json).default
 
 # The function URL will be:
-# https://$functionAppName.azurewebsites.net/api/SendConfirmation?code=$functionKey
+# https://$FUNCTION_APP_NAME.azurewebsites.net/api/SendConfirmation?code=$FUNCTION_KEY
 ```
 **Bash**
 ```bash
 # Get the function key
-function_key=$(az functionapp function keys list \
-  --name "$function_app_name" \
-  --resource-group "$resource_group_name" \
+FUNCTION_KEY=$(az functionapp function keys list \
+  --name "$FUNCTION_APP_NAME" \
+  --resource-group "$RG_NAME" \
   --function-name SendConfirmation \
   --query "default" -o tsv)
 
 # The function URL will be:
-# https://$function_app_name.azurewebsites.net/api/SendConfirmation?code=$function_key
+# https://$FUNCTION_APP_NAME.azurewebsites.net/api/SendConfirmation?code=$FUNCTION_KEY
 ```
 
 ---
@@ -469,7 +475,7 @@ Copy-Item -Path "Learning Path/02-Functions/ConferenceHub/*" -Destination ".\Con
 **Bash**
 ```bash
 # From repo root
-cp -R "Learning Path/02-Functions/ConferenceHub/." "./ConferenceHub/"
+cp -R " Learning Path/02-Functions/ConferenceHub/." "./ConferenceHub/"
 ```
 
 ### Step 1: Add Configuration
@@ -706,18 +712,18 @@ Add the Function URL to the Web App's application settings:
 **PowerShell**
 ```powershell
 az webapp config appsettings set `
-  --name $webAppName `
-  --resource-group $resourceGroupName `
-  --settings AzureFunctions__SendConfirmationUrl="https://$functionAppName.azurewebsites.net/api/SendConfirmation" `
-             AzureFunctions__FunctionKey="$functionKey"
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
+  --settings AzureFunctions__SendConfirmationUrl="https://$FUNCTION_APP_NAME.azurewebsites.net/api/SendConfirmation" `
+             AzureFunctions__FunctionKey="$FUNCTION_KEY"
 ```
 **Bash**
 ```bash
 az webapp config appsettings set \
-  --name "$web_app_name" \
-  --resource-group "$resource_group_name" \
-  --settings AzureFunctions__SendConfirmationUrl="https://$function_app_name.azurewebsites.net/api/SendConfirmation" \
-             AzureFunctions__FunctionKey="$function_key"
+  --name "$APP_NAME" \
+  --resource-group "$RG_NAME" \
+  --settings AzureFunctions__SendConfirmationUrl="https://$FUNCTION_APP_NAME.azurewebsites.net/api/SendConfirmation" \
+             AzureFunctions__FunctionKey="$FUNCTION_KEY"
 ```
 
 ---
@@ -730,11 +736,17 @@ az webapp config appsettings set \
 **PowerShell**
 ```powershell
 cd ConferenceHub.Functions
+
+azurite --silent --location .azurite --debug .azurite/debug.log
+
 func start
 ```
 **Bash**
 ```bash
 cd ConferenceHub.Functions
+
+azurite --silent --location .azurite --debug .azurite/debug.log
+
 func start
 ```
 
@@ -764,8 +776,8 @@ cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group $resourceGroupName `
-  --name $webAppName `
+  --resource-group $RG_NAME `
+  --name $APP_NAME `
   --src ./app.zip
 ```
 **Bash**
@@ -776,52 +788,19 @@ cd publish
 zip -r ../app.zip .
 cd ..
 az webapp deployment source config-zip \
-  --resource-group "$resource_group_name" \
-  --name "$web_app_name" \
+  --resource-group "$RG_NAME" \
+  --name "$APP_NAME" \
   --src ./app.zip
 ```
 
 2. **Test the live application**:
    - Navigate to your Azure Web App URL
    - Register for a session
-   - Check Application Insights or Function logs
-
-3. **View Function logs**:
-**PowerShell**
-```powershell
-az functionapp log tail `
-  --name $functionAppName `
-  --resource-group $resourceGroupName
-```
-**Bash**
-```bash
-az functionapp log tail \
-  --name "$function_app_name" \
-  --resource-group "$resource_group_name"
-```
+   - Check Application Insights 
 
 ---
 
 ## Part 6: Monitor and Troubleshoot
-
-### View Function Execution History
-
-**PowerShell**
-```powershell
-# View recent function executions
-az functionapp function show `
-  --name $functionAppName `
-  --resource-group $resourceGroupName `
-  --function-name SendConfirmation
-```
-**Bash**
-```bash
-# View recent function executions
-az functionapp function show \
-  --name "$function_app_name" \
-  --resource-group "$resource_group_name" \
-  --function-name SendConfirmation
-```
 
 ### Check Application Insights
 

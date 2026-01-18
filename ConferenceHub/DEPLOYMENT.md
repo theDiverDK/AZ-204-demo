@@ -31,8 +31,8 @@ Set variables used in the commands (Azure Cloud Shell):
 RG_NAME="rg-conferencehub"
 LOCATION="swedencentral"
 PLAN_NAME="plan-conferencehub"
-random="$RANDOM"
-APP_NAME="conferencehub-$random"
+RANDOM="$RANDOM"
+APP_NAME="conferencehub-$RANDOM"
 ```
 
 ### Step 1: Login to Azure
