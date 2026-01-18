@@ -7,11 +7,22 @@ namespace ConferenceHub.Controllers
     public class OrganizerController : Controller
     {
         private readonly IDataService _dataService;
+        private readonly IBlobStorageService _blobStorageService;
+        private readonly IAuditLogService _auditLogService;
+        private readonly ILogger<OrganizerController> _logger;
 
-        public OrganizerController(IDataService dataService)
+        public OrganizerController(
+            IDataService dataService,
+            IBlobStorageService blobStorageService,
+            IAuditLogService auditLogService,
+            ILogger<OrganizerController> logger)
         {
             _dataService = dataService;
+            _blobStorageService = blobStorageService;
+            _auditLogService = auditLogService;
+            _logger = logger;
         }
+
 
         // GET: Organizer
         public async Task<IActionResult> Index()
@@ -107,6 +118,98 @@ namespace ConferenceHub.Controllers
             }).ToList();
 
             return View(registrationDetails);
+        }
+        
+        // GET: Organizer/UploadSlides/5
+        public async Task<IActionResult> UploadSlides(int id)
+        {
+            var session = await _dataService.GetSessionByIdAsync(id);
+            if (session == null)
+            {
+                return NotFound();
+            }
+            return View(session);
+        }
+
+        // POST: Organizer/UploadSlides/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadSlides(int id, IFormFile slideFile)
+        {
+            var session = await _dataService.GetSessionByIdAsync(id);
+            if (session == null)
+            {
+                return NotFound();
+            }
+
+            if (slideFile == null || slideFile.Length == 0)
+            {
+                TempData["Error"] = "Please select a file to upload.";
+                return View(session);
+            }
+
+            // Validate file type
+            var allowedExtensions = new[] { ".pdf", ".pptx", ".ppt" };
+            var extension = Path.GetExtension(slideFile.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                TempData["Error"] = "Only PDF and PowerPoint files are allowed.";
+                return View(session);
+            }
+
+            // Validate file size (max 50MB)
+            if (slideFile.Length > 50 * 1024 * 1024)
+            {
+                TempData["Error"] = "File size must be less than 50MB.";
+                return View(session);
+            }
+
+            try
+            {
+                // Upload to blob storage
+                using var stream = slideFile.OpenReadStream();
+                var blobUrl = await _blobStorageService.UploadSlideAsync(
+                    id, 
+                    slideFile.FileName, 
+                    stream, 
+                    slideFile.ContentType);
+
+                // Update session with slide URL
+                session.SlideUrl = blobUrl;
+                session.SlideUploadedAt = DateTime.UtcNow;
+                await _dataService.UpdateSessionAsync(session);
+
+                // Log to audit table
+                await _auditLogService.LogSlideUploadAsync(id, session.Title, session.Speaker);
+
+                TempData["Success"] = "Slides uploaded successfully!";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading slides for session {SessionId}", id);
+                TempData["Error"] = "Error uploading slides. Please try again.";
+                return View(session);
+            }
+        }
+
+        // GET: Organizer/AuditLogs/5
+        public async Task<IActionResult> AuditLogs(int? sessionId)
+        {
+            List<AuditLogEntity> logs;
+            
+            if (sessionId.HasValue)
+            {
+                logs = await _auditLogService.GetSessionAuditLogsAsync(sessionId.Value);
+                var session = await _dataService.GetSessionByIdAsync(sessionId.Value);
+                ViewBag.SessionTitle = session?.Title;
+            }
+            else
+            {
+                logs = await _auditLogService.GetAllAuditLogsAsync();
+            }
+
+            return View(logs);
         }
     }
 }

@@ -593,10 +593,11 @@ dotnet run
 cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip `
+az webapp deploy `
   --resource-group rg-conferencehub `
   --name conferencehub-demo-[yourname] `
-  --src ./app.zip
+  --src-path ./app.zip
+  --type zip
 ```
 
 2. **Test the live application**:

@@ -18,14 +18,29 @@ In this learning path, you'll implement Microsoft Entra ID (formerly Azure AD) a
 
 ## Part 1: Register Application in Microsoft Entra ID
 
+Set variables used in the commands:
+PowerShell:
+```powershell
+$RG_NAME="rg-conferencehub"
+$LOCATION="swedencentral"
+$APP_NAME="conferencehub-$RANDOM"
+```
+Bash:
+```bash
+RG_NAME="rg-conferencehub"
+LOCATION="swedencentral"
+APP_NAME="conferencehub-$RANDOM"
+```
+
 ### Step 1: Create App Registration
 
+PowerShell:
 ```powershell
 # Create the app registration
 az ad app create `
   --display-name "ConferenceHub-WebApp" `
   --sign-in-audience AzureADMyOrg `
-  --web-redirect-uris "https://conferencehub-demo-az204reinke.azurewebsites.net/signin-oidc" "https://localhost:7055/signin-oidc" `
+  --web-redirect-uris "https://$APP_NAME.azurewebsites.net/signin-oidc" "https://localhost:7055/signin-oidc" `
   --enable-id-token-issuance true
 
 # Get the Application (client) ID
@@ -36,9 +51,27 @@ Write-Host "Application ID: $appId"
 $tenantId = az account show --query tenantId -o tsv
 Write-Host "Tenant ID: $tenantId"
 ```
+Bash:
+```bash
+# Create the app registration
+az ad app create \
+  --display-name "ConferenceHub-WebApp" \
+  --sign-in-audience AzureADMyOrg \
+  --web-redirect-uris "https://$APP_NAME.azurewebsites.net/signin-oidc" "https://localhost:7055/signin-oidc" \
+  --enable-id-token-issuance true
+
+# Get the Application (client) ID
+appId=$(az ad app list --display-name "ConferenceHub-WebApp" --query "[0].appId" -o tsv)
+echo "Application ID: $appId"
+
+# Get the Tenant ID
+tenantId=$(az account show --query tenantId -o tsv)
+echo "Tenant ID: $tenantId"
+```
 
 ### Step 2: Create Client Secret
 
+PowerShell:
 ```powershell
 # Create a client secret (valid for 1 year)
 $secretResult = az ad app credential reset `
@@ -55,6 +88,24 @@ Write-Host "`nSave these values:"
 Write-Host "TenantId: $tenantId"
 Write-Host "ClientId: $appId"
 Write-Host "ClientSecret: $clientSecret"
+```
+Bash:
+```bash
+# Create a client secret (valid for 1 year)
+clientSecret=$(az ad app credential reset \
+  --id $appId \
+  --append \
+  --years 1 \
+  --query password -o tsv)
+
+echo "Client Secret: $clientSecret"
+
+# IMPORTANT: Save these values - you'll need them in appsettings.json
+echo ""
+echo "Save these values:"
+echo "TenantId: $tenantId"
+echo "ClientId: $appId"
+echo "ClientSecret: $clientSecret"
 ```
 
 ### Step 3: Configure App Roles
@@ -79,13 +130,20 @@ Create `app-roles.json`:
 ]
 ```
 
+PowerShell:
 ```powershell
+# Add app roles to the application
+az ad app update --id $appId --app-roles @app-roles.json
+```
+Bash:
+```bash
 # Add app roles to the application
 az ad app update --id $appId --app-roles @app-roles.json
 ```
 
 ### Step 4: Assign Users to Roles
 
+PowerShell:
 ```powershell
 # Get the Enterprise App (Service Principal) object ID
 $spObjectId = az ad sp list --display-name "ConferenceHub-WebApp" --query "[0].id" -o tsv
@@ -102,6 +160,23 @@ az rest --method POST `
   --headers "Content-Type=application/json" `
   --body "{`"principalId`":`"$userObjectId`",`"resourceId`":`"$spObjectId`",`"appRoleId`":`"$organizerRoleId`"}"
 ```
+Bash:
+```bash
+# Get the Enterprise App (Service Principal) object ID
+spObjectId=$(az ad sp list --display-name "ConferenceHub-WebApp" --query "[0].id" -o tsv)
+
+# Get your user object ID
+userObjectId=$(az ad signed-in-user show --query id -o tsv)
+
+# Get the Organizer role ID
+organizerRoleId=$(az ad app show --id $appId --query "appRoles[?value=='Organizer'].id" -o tsv)
+
+# Assign yourself the Organizer role
+az rest --method POST \
+  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$spObjectId/appRoleAssignments" \
+  --headers "Content-Type=application/json" \
+  --body "{`"principalId`":`"$userObjectId`",`"resourceId`":`"$spObjectId`",`"appRoleId`":`"$organizerRoleId`"}"
+```
 
 ---
 
@@ -109,7 +184,14 @@ az rest --method POST `
 
 ### Step 1: Add NuGet Packages
 
+PowerShell:
 ```powershell
+cd ConferenceHub
+dotnet add package Microsoft.Identity.Web
+dotnet add package Microsoft.Identity.Web.UI
+```
+Bash:
+```bash
 cd ConferenceHub
 dotnet add package Microsoft.Identity.Web
 dotnet add package Microsoft.Identity.Web.UI
@@ -690,29 +772,55 @@ else
 
 ### Step 1: Enable Authentication in Azure
 
+PowerShell:
 ```powershell
 # Configure authentication for the App Service
 az webapp auth update `
-  --resource-group rg-conferencehub `
-  --name conferencehub-demo-az204reinke `
+  --resource-group $RG_NAME `
+  --name $APP_NAME `
   --enabled true `
   --action LoginWithAzureActiveDirectory `
   --aad-client-id $appId `
   --aad-client-secret $clientSecret `
   --aad-token-issuer-url "https://login.microsoftonline.com/$tenantId/v2.0"
 ```
+Bash:
+```bash
+# Configure authentication for the App Service
+az webapp auth update \
+  --resource-group $RG_NAME \
+  --name $APP_NAME \
+  --enabled true \
+  --action LoginWithAzureActiveDirectory \
+  --aad-client-id $appId \
+  --aad-client-secret $clientSecret \
+  --aad-token-issuer-url "https://login.microsoftonline.com/$tenantId/v2.0"
+```
 
 ### Step 2: Add App Settings
 
+PowerShell:
 ```powershell
 # Add Azure AD configuration to App Service
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
   --settings `
     AzureAd__Instance="https://login.microsoftonline.com/" `
     AzureAd__TenantId="$tenantId" `
     AzureAd__ClientId="$appId" `
+    AzureAd__ClientSecret="$clientSecret"
+```
+Bash:
+```bash
+# Add Azure AD configuration to App Service
+az webapp config appsettings set \
+  --name $APP_NAME \
+  --resource-group $RG_NAME \
+  --settings \
+    AzureAd__Instance="https://login.microsoftonline.com/" \
+    AzureAd__TenantId="$tenantId" \
+    AzureAd__ClientId="$appId" \
     AzureAd__ClientSecret="$clientSecret"
 ```
 
@@ -723,7 +831,13 @@ az webapp config appsettings set `
 ### Step 1: Update Functions Project
 
 Add to `ConferenceHubFunctions/ConferenceHubFunctions.csproj`:
+PowerShell:
 ```powershell
+cd ../ConferenceHubFunctions
+dotnet add package Microsoft.Identity.Web
+```
+Bash:
+```bash
 cd ../ConferenceHubFunctions
 dotnet add package Microsoft.Identity.Web
 ```
@@ -900,21 +1014,42 @@ host.Run();
 
 ### Step 1: Deploy Web App
 
+PowerShell:
 ```powershell
 cd ../ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
-  --name conferencehub-demo-az204reinke `
-  --src ./app.zip
+az webapp deploy `
+  --resource-group $RG_NAME `
+  --name $APP_NAME `
+  --src-path ./app.zip
+  --type zip
+```
+Bash:
+```bash
+cd ../ConferenceHub
+dotnet publish -c Release -o ./publish
+cd publish
+zip -r ../app.zip .
+cd ..
+az webapp deploy \
+  --resource-group $RG_NAME \
+  --name $APP_NAME \
+  --src-path ./app.zip
+  --type zip
 ```
 
 ### Step 2: Deploy Functions
 
+PowerShell:
 ```powershell
 cd ../ConferenceHubFunctions
-func azure functionapp publish func-conferencehub-az204reinke
+func azure functionapp publish $FUNC_APP_NAME
+```
+Bash:
+```bash
+cd ../ConferenceHubFunctions
+func azure functionapp publish $FUNC_APP_NAME
 ```
 
 ### Step 3: Test Authentication Flow

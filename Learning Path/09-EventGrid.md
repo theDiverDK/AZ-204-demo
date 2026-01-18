@@ -18,31 +18,82 @@ In this learning path, you'll implement event-driven architecture using Azure Ev
 
 ## Part 1: Create Event Grid Topic and Subscription
 
+Set variables used in the commands:
+PowerShell:
+```powershell
+$RG_NAME="rg-conferencehub"
+$LOCATION="swedencentral"
+$APP_NAME="conferencehub-$RANDOM"
+$FUNC_APP_NAME="func-conferencehub-$RANDOM"
+$STORAGE_NAME="stconferencehub$RANDOM"
+$EVENTGRID_SYSTEM_TOPIC_NAME="eg-topic-conferencehub-storage"
+$EVENTHUB_NAMESPACE="evhns-conferencehub"
+$EVENTHUB_NAME="session-feedback"
+$KEYVAULT_NAME="kv-conferencehub-$RANDOM"
+```
+Bash:
+```bash
+RG_NAME="rg-conferencehub"
+LOCATION="swedencentral"
+APP_NAME="conferencehub-$RANDOM"
+FUNC_APP_NAME="func-conferencehub-$RANDOM"
+STORAGE_NAME="stconferencehub$RANDOM"
+EVENTGRID_SYSTEM_TOPIC_NAME="eg-topic-conferencehub-storage"
+EVENTHUB_NAMESPACE="evhns-conferencehub"
+EVENTHUB_NAME="session-feedback"
+KEYVAULT_NAME="kv-conferencehub-$RANDOM"
+```
+
 ### Step 1: Enable Event Grid on Storage Account
 
+PowerShell:
 ```powershell
 # Get storage account ID
 $storageAccountId = az storage account show `
-  --name stconferencehub `
-  --resource-group rg-conferencehub `
+  --name $STORAGE_NAME `
+  --resource-group $RG_NAME `
   --query id `
   --output tsv
 
 Write-Host "Storage Account ID: $storageAccountId"
 ```
+Bash:
+```bash
+# Get storage account ID
+storageAccountId=$(az storage account show \
+  --name $STORAGE_NAME \
+  --resource-group $RG_NAME \
+  --query id \
+  --output tsv)
+
+echo "Storage Account ID: $storageAccountId"
+```
 
 ### Step 2: Create Event Grid System Topic
 
+PowerShell:
 ```powershell
 # Create Event Grid system topic for blob storage
 az eventgrid system-topic create `
-  --name eg-topic-conferencehub-storage `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $EVENTGRID_SYSTEM_TOPIC_NAME `
+  --resource-group $RG_NAME `
+  --location $LOCATION `
   --topic-type Microsoft.Storage.StorageAccounts `
   --source $storageAccountId
 
 Write-Host "Event Grid system topic created"
+```
+Bash:
+```bash
+# Create Event Grid system topic for blob storage
+az eventgrid system-topic create \
+  --name $EVENTGRID_SYSTEM_TOPIC_NAME \
+  --resource-group $RG_NAME \
+  --location $LOCATION \
+  --topic-type Microsoft.Storage.StorageAccounts \
+  --source $storageAccountId
+
+echo "Event Grid system topic created"
 ```
 
 ### Step 3: Create Azure Function for Event Processing
@@ -172,45 +223,86 @@ namespace ConferenceHubFunctions
 ```
 
 Add NuGet package:
+PowerShell:
 ```powershell
+cd ../ConferenceHubFunctions
+dotnet add package Azure.Messaging.EventGrid
+```
+Bash:
+```bash
 cd ../ConferenceHubFunctions
 dotnet add package Azure.Messaging.EventGrid
 ```
 
 Deploy function:
+PowerShell:
 ```powershell
-func azure functionapp publish func-conferencehub-az204reinke
+func azure functionapp publish $FUNC_APP_NAME
+```
+Bash:
+```bash
+func azure functionapp publish $FUNC_APP_NAME
 ```
 
 ### Step 4: Create Event Grid Subscription
 
+PowerShell:
 ```powershell
 # Get function URL
 $functionUrl = az functionapp function show `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $FUNC_APP_NAME `
+  --resource-group $RG_NAME `
   --function-name ProcessSlideUpload `
   --query invokeUrlTemplate `
   --output tsv
 
 # Get function key
 $functionKey = az functionapp keys list `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $FUNC_APP_NAME `
+  --resource-group $RG_NAME `
   --query "functionKeys.default" `
   --output tsv
 
 # Create event subscription for BlobCreated events
 az eventgrid system-topic event-subscription create `
   --name slide-upload-subscription `
-  --resource-group rg-conferencehub `
-  --system-topic-name eg-topic-conferencehub-storage `
+  --resource-group $RG_NAME `
+  --system-topic-name $EVENTGRID_SYSTEM_TOPIC_NAME `
   --endpoint "$functionUrl&code=$functionKey" `
   --endpoint-type webhook `
   --included-event-types Microsoft.Storage.BlobCreated `
   --subject-begins-with /blobServices/default/containers/speaker-slides/
 
 Write-Host "Event Grid subscription created"
+```
+Bash:
+```bash
+# Get function URL
+functionUrl=$(az functionapp function show \
+  --name $FUNC_APP_NAME \
+  --resource-group $RG_NAME \
+  --function-name ProcessSlideUpload \
+  --query invokeUrlTemplate \
+  --output tsv)
+
+# Get function key
+functionKey=$(az functionapp keys list \
+  --name $FUNC_APP_NAME \
+  --resource-group $RG_NAME \
+  --query "functionKeys.default" \
+  --output tsv)
+
+# Create event subscription for BlobCreated events
+az eventgrid system-topic event-subscription create \
+  --name slide-upload-subscription \
+  --resource-group $RG_NAME \
+  --system-topic-name $EVENTGRID_SYSTEM_TOPIC_NAME \
+  --endpoint "$functionUrl&code=$functionKey" \
+  --endpoint-type webhook \
+  --included-event-types Microsoft.Storage.BlobCreated \
+  --subject-begins-with /blobServices/default/containers/speaker-slides/
+
+echo "Event Grid subscription created"
 ```
 
 ---
@@ -219,46 +311,80 @@ Write-Host "Event Grid subscription created"
 
 ### Step 1: Create Event Hub Namespace
 
+PowerShell:
 ```powershell
 # Create Event Hub namespace
 az eventhubs namespace create `
-  --name evhns-conferencehub `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $EVENTHUB_NAMESPACE `
+  --resource-group $RG_NAME `
+  --location $LOCATION `
   --sku Standard `
   --capacity 1
 
 Write-Host "Event Hub namespace created"
 ```
+Bash:
+```bash
+# Create Event Hub namespace
+az eventhubs namespace create \
+  --name $EVENTHUB_NAMESPACE \
+  --resource-group $RG_NAME \
+  --location $LOCATION \
+  --sku Standard \
+  --capacity 1
+
+echo "Event Hub namespace created"
+```
 
 ### Step 2: Create Event Hub
 
+PowerShell:
 ```powershell
 # Create Event Hub for session feedback
 az eventhubs eventhub create `
   --name session-feedback `
-  --namespace-name evhns-conferencehub `
-  --resource-group rg-conferencehub `
+  --namespace-name $EVENTHUB_NAMESPACE `
+  --resource-group $RG_NAME `
   --partition-count 2 `
   --message-retention 1
 
 # Create consumer group for processing
 az eventhubs eventhub consumer-group create `
-  --eventhub-name session-feedback `
-  --namespace-name evhns-conferencehub `
-  --resource-group rg-conferencehub `
+  --eventhub-name $EVENTHUB_NAME `
+  --namespace-name $EVENTHUB_NAMESPACE `
+  --resource-group $RG_NAME `
   --name feedback-processor
 
 Write-Host "Event Hub created"
 ```
+Bash:
+```bash
+# Create Event Hub for session feedback
+az eventhubs eventhub create \
+  --name session-feedback \
+  --namespace-name $EVENTHUB_NAMESPACE \
+  --resource-group $RG_NAME \
+  --partition-count 2 \
+  --message-retention 1
+
+# Create consumer group for processing
+az eventhubs eventhub consumer-group create \
+  --eventhub-name $EVENTHUB_NAME \
+  --namespace-name $EVENTHUB_NAMESPACE \
+  --resource-group $RG_NAME \
+  --name feedback-processor
+
+echo "Event Hub created"
+```
 
 ### Step 3: Get Connection Strings
 
+PowerShell:
 ```powershell
 # Get Event Hub connection string
 $eventHubConnectionString = az eventhubs namespace authorization-rule keys list `
-  --namespace-name evhns-conferencehub `
-  --resource-group rg-conferencehub `
+  --namespace-name $EVENTHUB_NAMESPACE `
+  --resource-group $RG_NAME `
   --name RootManageSharedAccessKey `
   --query primaryConnectionString `
   --output tsv
@@ -267,8 +393,26 @@ Write-Host "Event Hub Connection String: $eventHubConnectionString"
 
 # Store in Key Vault
 az keyvault secret set `
-  --vault-name kv-conferencehub-az204 `
+  --vault-name $KEYVAULT_NAME `
   --name "EventHub--ConnectionString" `
+  --value $eventHubConnectionString
+```
+Bash:
+```bash
+# Get Event Hub connection string
+eventHubConnectionString=$(az eventhubs namespace authorization-rule keys list \
+  --namespace-name $EVENTHUB_NAMESPACE \
+  --resource-group $RG_NAME \
+  --name RootManageSharedAccessKey \
+  --query primaryConnectionString \
+  --output tsv)
+
+echo "Event Hub Connection String: $eventHubConnectionString"
+
+# Store in Key Vault
+az keyvault secret set \
+  --vault-name $KEYVAULT_NAME \
+  --name "EventHub--ConnectionString" \
   --value $eventHubConnectionString
 ```
 
@@ -420,7 +564,13 @@ namespace ConferenceHub.Services
 ```
 
 Add NuGet package:
+PowerShell:
 ```powershell
+cd ../ConferenceHub
+dotnet add package Azure.Messaging.EventHubs
+```
+Bash:
+```bash
 cd ../ConferenceHub
 dotnet add package Azure.Messaging.EventHubs
 ```
@@ -759,26 +909,48 @@ namespace ConferenceHubFunctions
 
 ### Step 2: Configure Function App Settings
 
+PowerShell:
 ```powershell
 # Get Event Hub connection string from Key Vault
 $eventHubConnectionString = az keyvault secret show `
-  --vault-name kv-conferencehub-az204 `
+  --vault-name $KEYVAULT_NAME `
   --name "EventHub--ConnectionString" `
   --query value `
   --output tsv
 
 # Add to Function App settings
 az functionapp config appsettings set `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $FUNC_APP_NAME `
+  --resource-group $RG_NAME `
+  --settings EventHubConnectionString="$eventHubConnectionString"
+```
+Bash:
+```bash
+# Get Event Hub connection string from Key Vault
+eventHubConnectionString=$(az keyvault secret show \
+  --vault-name $KEYVAULT_NAME \
+  --name "EventHub--ConnectionString" \
+  --query value \
+  --output tsv)
+
+# Add to Function App settings
+az functionapp config appsettings set \
+  --name $FUNC_APP_NAME \
+  --resource-group $RG_NAME \
   --settings EventHubConnectionString="$eventHubConnectionString"
 ```
 
 ### Step 3: Deploy Function
 
+PowerShell:
 ```powershell
 cd ConferenceHubFunctions
-func azure functionapp publish func-conferencehub-az204reinke
+func azure functionapp publish $FUNC_APP_NAME
+```
+Bash:
+```bash
+cd ConferenceHubFunctions
+func azure functionapp publish $FUNC_APP_NAME
 ```
 
 ---
@@ -787,6 +959,7 @@ func azure functionapp publish func-conferencehub-az204reinke
 
 ### Test 1: Test Event Grid (Blob Upload)
 
+PowerShell:
 ```powershell
 # Upload a test file to trigger Event Grid
 $testFile = "test-slide.pdf"
@@ -794,15 +967,33 @@ New-Item -Path $testFile -ItemType File -Force
 Set-Content -Path $testFile -Value "Test content"
 
 az storage blob upload `
-  --account-name stconferencehub `
+  --account-name $STORAGE_NAME `
   --container-name speaker-slides `
   --name "session-1/test-slide.pdf" `
   --file $testFile
 
 # Check Function App logs
 az functionapp log tail `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub
+  --name $FUNC_APP_NAME `
+  --resource-group $RG_NAME
+```
+Bash:
+```bash
+# Upload a test file to trigger Event Grid
+testFile="test-slide.pdf"
+New-Item -Path $testFile -ItemType File -Force
+Set-Content -Path $testFile -Value "Test content"
+
+az storage blob upload \
+  --account-name $STORAGE_NAME \
+  --container-name speaker-slides \
+  --name "session-1/test-slide.pdf" \
+  --file $testFile
+
+# Check Function App logs
+az functionapp log tail \
+  --name $FUNC_APP_NAME \
+  --resource-group $RG_NAME
 ```
 
 ### Test 2: Test Event Hub (Submit Feedback)
@@ -814,17 +1005,24 @@ az functionapp log tail `
 5. Check Function App logs to see ProcessFeedback execution
 
 Alternative - Send test event programmatically:
+PowerShell:
 ```powershell
+# Install Azure.Messaging.EventHubs for testing
+# Create test script to send feedback
+```
+Bash:
+```bash
 # Install Azure.Messaging.EventHubs for testing
 # Create test script to send feedback
 ```
 
 ### Test 3: Monitor Events
 
+PowerShell:
 ```powershell
 # View Event Hub metrics
 az monitor metrics list `
-  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/rg-conferencehub/providers/Microsoft.EventHub/namespaces/evhns-conferencehub" `
+  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/Microsoft.EventHub/namespaces/$EVENTHUB_NAMESPACE" `
   --metric "IncomingMessages" `
   --start-time 2024-01-01T00:00:00Z
 
@@ -834,6 +1032,20 @@ az monitor metrics list `
   --metric "BlobCount" `
   --start-time 2024-01-01T00:00:00Z
 ```
+Bash:
+```bash
+# View Event Hub metrics
+az monitor metrics list \
+  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/Microsoft.EventHub/namespaces/$EVENTHUB_NAMESPACE" \
+  --metric "IncomingMessages" \
+  --start-time 2024-01-01T00:00:00Z
+
+# View Event Grid metrics
+az monitor metrics list \
+  --resource $storageAccountId \
+  --metric "BlobCount" \
+  --start-time 2024-01-01T00:00:00Z
+```
 
 ---
 
@@ -841,24 +1053,48 @@ az monitor metrics list `
 
 ### Step 1: Update Web App Configuration
 
+PowerShell:
 ```powershell
 # Add Event Hub connection string to Web App
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
-  --settings EventHub__ConnectionString="@Microsoft.KeyVault(SecretUri=https://kv-conferencehub-az204.vault.azure.net/secrets/EventHub--ConnectionString/)"
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
+  --settings EventHub__ConnectionString="@Microsoft.KeyVault(SecretUri=https://$KEYVAULT_NAME.vault.azure.net/secrets/EventHub--ConnectionString/)"
+```
+Bash:
+```bash
+# Add Event Hub connection string to Web App
+az webapp config appsettings set \
+  --name $APP_NAME \
+  --resource-group $RG_NAME \
+  --settings EventHub__ConnectionString="@Microsoft.KeyVault(SecretUri=https://$KEYVAULT_NAME.vault.azure.net/secrets/EventHub--ConnectionString/)"
 ```
 
 ### Step 2: Deploy Updated Web App
 
+PowerShell:
 ```powershell
 cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
-  --name conferencehub-demo-az204reinke `
-  --src ./app.zip
+az webapp deploy `
+  --resource-group $RG_NAME `
+  --name $APP_NAME `
+  --src-path ./app.zip
+  --type zip
+```
+Bash:
+```bash
+cd ConferenceHub
+dotnet publish -c Release -o ./publish
+cd publish
+zip -r ../app.zip .
+cd ..
+az webapp deploy \
+  --resource-group $RG_NAME \
+  --name $APP_NAME \
+  --src-path ./app.zip
+  --type zip
 ```
 
 ---

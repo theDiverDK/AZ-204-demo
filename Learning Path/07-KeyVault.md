@@ -18,38 +18,80 @@ In this learning path, you'll secure sensitive application secrets using Azure K
 
 ## Part 1: Create Azure Key Vault
 
+Set variables used in the commands:
+PowerShell:
+```powershell
+$RG_NAME="rg-conferencehub"
+$LOCATION="swedencentral"
+$APP_NAME="conferencehub-$RANDOM"
+$FUNC_APP_NAME="func-conferencehub-$RANDOM"
+$KEYVAULT_NAME="kv-conferencehub-$RANDOM"
+$APPCONFIG_NAME="appconfig-conferencehub-$RANDOM"
+$STORAGE_NAME="stconferencehub$RANDOM"
+```
+Bash:
+```bash
+RG_NAME="rg-conferencehub"
+LOCATION="swedencentral"
+APP_NAME="conferencehub-$RANDOM"
+FUNC_APP_NAME="func-conferencehub-$RANDOM"
+KEYVAULT_NAME="kv-conferencehub-$RANDOM"
+APPCONFIG_NAME="appconfig-conferencehub-$RANDOM"
+STORAGE_NAME="stconferencehub$RANDOM"
+```
+
 ### Step 1: Create Key Vault Resource
 
+PowerShell:
 ```powershell
 # Create Key Vault
 az keyvault create `
-  --name kv-conferencehub-az204 `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $KEYVAULT_NAME `
+  --resource-group $RG_NAME `
+  --location $LOCATION `
   --enable-rbac-authorization true
 
 # Get Key Vault URI
 $keyVaultUri = az keyvault show `
-  --name kv-conferencehub-az204 `
-  --resource-group rg-conferencehub `
+  --name $KEYVAULT_NAME `
+  --resource-group $RG_NAME `
   --query properties.vaultUri `
   --output tsv
 
 Write-Host "Key Vault URI: $keyVaultUri"
 ```
+Bash:
+```bash
+# Create Key Vault
+az keyvault create \
+  --name $KEYVAULT_NAME \
+  --resource-group $RG_NAME \
+  --location $LOCATION \
+  --enable-rbac-authorization true
+
+# Get Key Vault URI
+keyVaultUri=$(az keyvault show \
+  --name $KEYVAULT_NAME \
+  --resource-group $RG_NAME \
+  --query properties.vaultUri \
+  --output tsv)
+
+echo "Key Vault URI: $keyVaultUri"
+```
 
 ### Step 2: Enable Managed Identity for App Service
 
+PowerShell:
 ```powershell
 # Enable system-assigned managed identity for Web App
 az webapp identity assign `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub
+  --name $APP_NAME `
+  --resource-group $RG_NAME
 
 # Get the managed identity principal ID
 $webAppPrincipalId = az webapp identity show `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
   --query principalId `
   --output tsv
 
@@ -57,26 +99,57 @@ Write-Host "Web App Principal ID: $webAppPrincipalId"
 
 # Enable managed identity for Function App
 az functionapp identity assign `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub
+  --name $FUNC_APP_NAME `
+  --resource-group $RG_NAME
 
 # Get function app principal ID
 $funcPrincipalId = az functionapp identity show `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $FUNC_APP_NAME `
+  --resource-group $RG_NAME `
   --query principalId `
   --output tsv
 
 Write-Host "Function App Principal ID: $funcPrincipalId"
 ```
+Bash:
+```bash
+# Enable system-assigned managed identity for Web App
+az webapp identity assign \
+  --name $APP_NAME \
+  --resource-group $RG_NAME
+
+# Get the managed identity principal ID
+webAppPrincipalId=$(az webapp identity show \
+  --name $APP_NAME \
+  --resource-group $RG_NAME \
+  --query principalId \
+  --output tsv)
+
+echo "Web App Principal ID: $webAppPrincipalId"
+
+# Enable managed identity for Function App
+az functionapp identity assign \
+  --name $FUNC_APP_NAME \
+  --resource-group $RG_NAME
+
+# Get function app principal ID
+funcPrincipalId=$(az functionapp identity show \
+  --name $FUNC_APP_NAME \
+  --resource-group $RG_NAME \
+  --query principalId \
+  --output tsv)
+
+echo "Function App Principal ID: $funcPrincipalId"
+```
 
 ### Step 3: Grant Access to Key Vault
 
+PowerShell:
 ```powershell
 # Get your Key Vault resource ID
 $keyVaultId = az keyvault show `
-  --name kv-conferencehub-az204 `
-  --resource-group rg-conferencehub `
+  --name $KEYVAULT_NAME `
+  --resource-group $RG_NAME `
   --query id `
   --output tsv
 
@@ -102,34 +175,93 @@ az role assignment create `
 Write-Host "Waiting for role assignments to propagate (30 seconds)..."
 Start-Sleep -Seconds 30
 ```
+Bash:
+```bash
+# Get your Key Vault resource ID
+keyVaultId=$(az keyvault show \
+  --name $KEYVAULT_NAME \
+  --resource-group $RG_NAME \
+  --query id \
+  --output tsv)
+
+# Assign "Key Vault Secrets Officer" role to yourself (for adding secrets)
+currentUserId=$(az ad signed-in-user show --query id -o tsv)
+az role assignment create \
+  --role "Key Vault Secrets Officer" \
+  --assignee $currentUserId \
+  --scope $keyVaultId
+
+# Assign "Key Vault Secrets User" role to Web App managed identity
+az role assignment create \
+  --role "Key Vault Secrets User" \
+  --assignee $webAppPrincipalId \
+  --scope $keyVaultId
+
+# Assign "Key Vault Secrets User" role to Function App managed identity
+az role assignment create \
+  --role "Key Vault Secrets User" \
+  --assignee $funcPrincipalId \
+  --scope $keyVaultId
+
+echo "Waiting for role assignments to propagate (30 seconds)..."
+Start-Sleep -Seconds 30
+```
 
 ### Step 4: Add Secrets to Key Vault
 
+PowerShell:
 ```powershell
 # Add Storage connection string
 $storageConnectionString = az storage account show-connection-string `
-  --name stconferencehub `
-  --resource-group rg-conferencehub `
+  --name $STORAGE_NAME `
+  --resource-group $RG_NAME `
   --output tsv
 
 az keyvault secret set `
-  --vault-name kv-conferencehub-az204 `
+  --vault-name $KEYVAULT_NAME `
   --name "AzureStorage--ConnectionString" `
   --value $storageConnectionString
 
 # Add Entra ID Client Secret
 az keyvault secret set `
-  --vault-name kv-conferencehub-az204 `
+  --vault-name $KEYVAULT_NAME `
   --name "AzureAd--ClientSecret" `
   --value "YOUR_CLIENT_SECRET_FROM_LEARNING_PATH_6"
 
 # Add Cosmos DB connection string (if using Cosmos DB from Learning Path 4)
 az keyvault secret set `
-  --vault-name kv-conferencehub-az204 `
+  --vault-name $KEYVAULT_NAME `
   --name "CosmosDb--ConnectionString" `
   --value "YOUR_COSMOS_CONNECTION_STRING"
 
 Write-Host "Secrets added to Key Vault"
+```
+Bash:
+```bash
+# Add Storage connection string
+storageConnectionString=$(az storage account show-connection-string \
+  --name $STORAGE_NAME \
+  --resource-group $RG_NAME \
+  --output tsv)
+
+az keyvault secret set \
+  --vault-name $KEYVAULT_NAME \
+  --name "AzureStorage--ConnectionString" \
+  --value $storageConnectionString
+
+# Add Entra ID Client Secret
+az keyvault secret set \
+  --vault-name $KEYVAULT_NAME \
+  --name "AzureAd--ClientSecret" \
+  --value "YOUR_CLIENT_SECRET_FROM_LEARNING_PATH_6"
+
+# Add Cosmos DB connection string (if using Cosmos DB from Learning Path 4)
+az keyvault secret set \
+  --vault-name $KEYVAULT_NAME \
+  --name "CosmosDb--ConnectionString" \
+  --value "YOUR_COSMOS_CONNECTION_STRING"
+
+echo "Secrets added to Key Vault"
 ```
 
 ---
@@ -138,7 +270,15 @@ Write-Host "Secrets added to Key Vault"
 
 ### Step 1: Add NuGet Packages
 
+PowerShell:
 ```powershell
+cd ConferenceHub
+dotnet add package Azure.Identity
+dotnet add package Azure.Extensions.AspNetCore.Configuration.Secrets
+dotnet add package Azure.Security.KeyVault.Secrets
+```
+Bash:
+```bash
 cd ConferenceHub
 dotnet add package Azure.Identity
 dotnet add package Azure.Extensions.AspNetCore.Configuration.Secrets
@@ -250,7 +390,7 @@ Update `ConferenceHub/appsettings.json` to reference Key Vault:
   },
   "AllowedHosts": "*",
   "KeyVault": {
-    "VaultUri": "https://kv-conferencehub-az204.vault.azure.net/"
+    "VaultUri": "https://$KEYVAULT_NAME.vault.azure.net/"
   },
   "AzureAd": {
     "Instance": "https://login.microsoftonline.com/",
@@ -260,7 +400,7 @@ Update `ConferenceHub/appsettings.json` to reference Key Vault:
     "SignedOutCallbackPath": "/signout-callback-oidc"
   },
   "AzureFunctions": {
-    "SendConfirmationUrl": "https://func-conferencehub-az204reinke.azurewebsites.net/api/SendConfirmation",
+    "SendConfirmationUrl": "https://$FUNC_APP_NAME.azurewebsites.net/api/SendConfirmation",
     "FunctionKey": ""
   }
 }
@@ -274,31 +414,51 @@ Note: Connection strings and client secret are now loaded from Key Vault automat
 
 ### Step 1: Create App Configuration Resource
 
+PowerShell:
 ```powershell
 # Create App Configuration store
 az appconfig create `
-  --name appconfig-conferencehub `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $APPCONFIG_NAME `
+  --resource-group $RG_NAME `
+  --location $LOCATION `
   --sku Standard
 
 # Get App Configuration endpoint
 $appConfigEndpoint = az appconfig show `
-  --name appconfig-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $APPCONFIG_NAME `
+  --resource-group $RG_NAME `
   --query endpoint `
   --output tsv
 
 Write-Host "App Configuration Endpoint: $appConfigEndpoint"
 ```
+Bash:
+```bash
+# Create App Configuration store
+az appconfig create \
+  --name $APPCONFIG_NAME \
+  --resource-group $RG_NAME \
+  --location $LOCATION \
+  --sku Standard
+
+# Get App Configuration endpoint
+appConfigEndpoint=$(az appconfig show \
+  --name $APPCONFIG_NAME \
+  --resource-group $RG_NAME \
+  --query endpoint \
+  --output tsv)
+
+echo "App Configuration Endpoint: $appConfigEndpoint"
+```
 
 ### Step 2: Grant Access to App Configuration
 
+PowerShell:
 ```powershell
 # Get App Configuration resource ID
 $appConfigId = az appconfig show `
-  --name appconfig-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $APPCONFIG_NAME `
+  --resource-group $RG_NAME `
   --query id `
   --output tsv
 
@@ -323,42 +483,108 @@ az role assignment create `
 Write-Host "Waiting for role assignments to propagate (30 seconds)..."
 Start-Sleep -Seconds 30
 ```
+Bash:
+```bash
+# Get App Configuration resource ID
+appConfigId=$(az appconfig show \
+  --name $APPCONFIG_NAME \
+  --resource-group $RG_NAME \
+  --query id \
+  --output tsv)
+
+# Assign "App Configuration Data Owner" role to yourself
+az role assignment create \
+  --role "App Configuration Data Owner" \
+  --assignee $currentUserId \
+  --scope $appConfigId
+
+# Assign "App Configuration Data Reader" role to Web App
+az role assignment create \
+  --role "App Configuration Data Reader" \
+  --assignee $webAppPrincipalId \
+  --scope $appConfigId
+
+# Assign "App Configuration Data Reader" role to Function App
+az role assignment create \
+  --role "App Configuration Data Reader" \
+  --assignee $funcPrincipalId \
+  --scope $appConfigId
+
+echo "Waiting for role assignments to propagate (30 seconds)..."
+Start-Sleep -Seconds 30
+```
 
 ### Step 3: Add Configuration Values
 
+PowerShell:
 ```powershell
 # Add application settings
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --key "ConferenceHub:MaxSessionCapacity" `
   --value "100" `
   --yes
 
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --key "ConferenceHub:RegistrationOpenDays" `
   --value "30" `
   --yes
 
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --key "ConferenceHub:AllowWaitlist" `
   --value "true" `
   --yes
 
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --key "Email:FromAddress" `
   --value "noreply@conferencehub.com" `
   --yes
 
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --key "Email:FromName" `
   --value "ConferenceHub Notifications" `
   --yes
 
 Write-Host "Configuration values added"
+```
+Bash:
+```bash
+# Add application settings
+az appconfig kv set \
+  --name $APPCONFIG_NAME \
+  --key "ConferenceHub:MaxSessionCapacity" \
+  --value "100" \
+  --yes
+
+az appconfig kv set \
+  --name $APPCONFIG_NAME \
+  --key "ConferenceHub:RegistrationOpenDays" \
+  --value "30" \
+  --yes
+
+az appconfig kv set \
+  --name $APPCONFIG_NAME \
+  --key "ConferenceHub:AllowWaitlist" \
+  --value "true" \
+  --yes
+
+az appconfig kv set \
+  --name $APPCONFIG_NAME \
+  --key "Email:FromAddress" \
+  --value "noreply@conferencehub.com" \
+  --yes
+
+az appconfig kv set \
+  --name $APPCONFIG_NAME \
+  --key "Email:FromName" \
+  --value "ConferenceHub Notifications" \
+  --yes
+
+echo "Configuration values added"
 ```
 
 ---
@@ -367,62 +593,122 @@ Write-Host "Configuration values added"
 
 ### Step 1: Create Feature Flags in App Configuration
 
+PowerShell:
 ```powershell
 # Create feature flag for slide upload
 az appconfig feature set `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "SlideUpload" `
   --yes `
   --description "Enable speaker slide upload functionality"
 
 az appconfig feature enable `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "SlideUpload" `
   --yes
 
 # Create feature flag for waitlist
 az appconfig feature set `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "Waitlist" `
   --yes `
   --description "Enable waitlist when sessions are full"
 
 az appconfig feature enable `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "Waitlist" `
   --yes
 
 # Create feature flag for session ratings
 az appconfig feature set `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "SessionRatings" `
   --yes `
   --description "Enable attendees to rate sessions"
 
 az appconfig feature disable `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "SessionRatings" `
   --yes
 
 # Create feature flag for live Q&A
 az appconfig feature set `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "LiveQA" `
   --yes `
   --description "Enable live Q&A during sessions"
 
 az appconfig feature disable `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "LiveQA" `
   --yes
 
 Write-Host "Feature flags created"
 ```
+Bash:
+```bash
+# Create feature flag for slide upload
+az appconfig feature set \
+  --name $APPCONFIG_NAME \
+  --feature "SlideUpload" \
+  --yes \
+  --description "Enable speaker slide upload functionality"
+
+az appconfig feature enable \
+  --name $APPCONFIG_NAME \
+  --feature "SlideUpload" \
+  --yes
+
+# Create feature flag for waitlist
+az appconfig feature set \
+  --name $APPCONFIG_NAME \
+  --feature "Waitlist" \
+  --yes \
+  --description "Enable waitlist when sessions are full"
+
+az appconfig feature enable \
+  --name $APPCONFIG_NAME \
+  --feature "Waitlist" \
+  --yes
+
+# Create feature flag for session ratings
+az appconfig feature set \
+  --name $APPCONFIG_NAME \
+  --feature "SessionRatings" \
+  --yes \
+  --description "Enable attendees to rate sessions"
+
+az appconfig feature disable \
+  --name $APPCONFIG_NAME \
+  --feature "SessionRatings" \
+  --yes
+
+# Create feature flag for live Q&A
+az appconfig feature set \
+  --name $APPCONFIG_NAME \
+  --feature "LiveQA" \
+  --yes \
+  --description "Enable live Q&A during sessions"
+
+az appconfig feature disable \
+  --name $APPCONFIG_NAME \
+  --feature "LiveQA" \
+  --yes
+
+echo "Feature flags created"
+```
 
 ### Step 2: Add App Configuration to Web App
 
 Add NuGet packages:
+PowerShell:
 ```powershell
+cd ConferenceHub
+dotnet add package Microsoft.Azure.AppConfiguration.AspNetCore
+dotnet add package Microsoft.FeatureManagement.AspNetCore
+```
+Bash:
+```bash
 cd ConferenceHub
 dotnet add package Microsoft.Azure.AppConfiguration.AspNetCore
 dotnet add package Microsoft.FeatureManagement.AspNetCore
@@ -559,10 +845,10 @@ Add App Configuration endpoint:
   },
   "AllowedHosts": "*",
   "KeyVault": {
-    "VaultUri": "https://kv-conferencehub-az204.vault.azure.net/"
+    "VaultUri": "https://$KEYVAULT_NAME.vault.azure.net/"
   },
   "AppConfiguration": {
-    "Endpoint": "https://appconfig-conferencehub.azconfig.io"
+    "Endpoint": "https://$APPCONFIG_NAME.azconfig.io"
   },
   "AzureAd": {
     "Instance": "https://login.microsoftonline.com/",
@@ -572,7 +858,7 @@ Add App Configuration endpoint:
     "SignedOutCallbackPath": "/signout-callback-oidc"
   },
   "AzureFunctions": {
-    "SendConfirmationUrl": "https://func-conferencehub-az204reinke.azurewebsites.net/api/SendConfirmation",
+    "SendConfirmationUrl": "https://$FUNC_APP_NAME.azurewebsites.net/api/SendConfirmation",
     "FunctionKey": ""
   }
 }
@@ -871,41 +1157,81 @@ public OrganizerController(
 
 ### Step 1: Configure Web App Settings
 
+PowerShell:
 ```powershell
 # Add Key Vault and App Configuration endpoints
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
   --settings `
-    KeyVault__VaultUri="https://kv-conferencehub-az204.vault.azure.net/" `
-    AppConfiguration__Endpoint="https://appconfig-conferencehub.azconfig.io"
+    KeyVault__VaultUri="https://$KEYVAULT_NAME.vault.azure.net/" `
+    AppConfiguration__Endpoint="https://$APPCONFIG_NAME.azconfig.io"
 
 # Remove sensitive settings (now in Key Vault)
 az webapp config appsettings delete `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
+  --setting-names AzureStorage__ConnectionString AzureAd__ClientSecret
+```
+Bash:
+```bash
+# Add Key Vault and App Configuration endpoints
+az webapp config appsettings set \
+  --name $APP_NAME \
+  --resource-group $RG_NAME \
+  --settings \
+    KeyVault__VaultUri="https://$KEYVAULT_NAME.vault.azure.net/" \
+    AppConfiguration__Endpoint="https://$APPCONFIG_NAME.azconfig.io"
+
+# Remove sensitive settings (now in Key Vault)
+az webapp config appsettings delete \
+  --name $APP_NAME \
+  --resource-group $RG_NAME \
   --setting-names AzureStorage__ConnectionString AzureAd__ClientSecret
 ```
 
 ### Step 2: Deploy Updated Application
 
+PowerShell:
 ```powershell
 cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
-  --name conferencehub-demo-az204reinke `
-  --src ./app.zip
+az webapp deploy `
+  --resource-group $RG_NAME `
+  --name $APP_NAME `
+  --src-path ./app.zip
+  --type zip
+```
+Bash:
+```bash
+cd ConferenceHub
+dotnet publish -c Release -o ./publish
+cd publish
+zip -r ../app.zip .
+cd ..
+az webapp deploy \
+  --resource-group $RG_NAME \
+  --name $APP_NAME \
+  --src-path ./app.zip
+  --type zip
 ```
 
 ### Step 3: Verify Deployment
 
+PowerShell:
 ```powershell
 # Check Web App logs
 az webapp log tail `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub
+  --name $APP_NAME `
+  --resource-group $RG_NAME
+```
+Bash:
+```bash
+# Check Web App logs
+az webapp log tail \
+  --name $APP_NAME \
+  --resource-group $RG_NAME
 ```
 
 ---
@@ -914,33 +1240,56 @@ az webapp log tail `
 
 ### Test 1: Enable/Disable Slide Upload
 
+PowerShell:
 ```powershell
 # Disable slide upload
 az appconfig feature disable `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "SlideUpload" `
   --yes
 
 # Wait for cache to expire (5 minutes) or restart app
 az webapp restart `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub
+  --name $APP_NAME `
+  --resource-group $RG_NAME
 
 # Verify: Upload Slides button should disappear from Organizer Dashboard
 
 # Re-enable
 az appconfig feature enable `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "SlideUpload" `
+  --yes
+```
+Bash:
+```bash
+# Disable slide upload
+az appconfig feature disable \
+  --name $APPCONFIG_NAME \
+  --feature "SlideUpload" \
+  --yes
+
+# Wait for cache to expire (5 minutes) or restart app
+az webapp restart \
+  --name $APP_NAME \
+  --resource-group $RG_NAME
+
+# Verify: Upload Slides button should disappear from Organizer Dashboard
+
+# Re-enable
+az appconfig feature enable \
+  --name $APPCONFIG_NAME \
+  --feature "SlideUpload" \
   --yes
 ```
 
 ### Test 2: Toggle Waitlist Feature
 
+PowerShell:
 ```powershell
 # Disable waitlist
 az appconfig feature disable `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "Waitlist" `
   --yes
 
@@ -948,8 +1297,26 @@ az appconfig feature disable `
 
 # Enable waitlist
 az appconfig feature enable `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --feature "Waitlist" `
+  --yes
+
+# Try registering for a full session - should show "Added to waitlist" message
+```
+Bash:
+```bash
+# Disable waitlist
+az appconfig feature disable \
+  --name $APPCONFIG_NAME \
+  --feature "Waitlist" \
+  --yes
+
+# Try registering for a full session - should show "Session Full" error
+
+# Enable waitlist
+az appconfig feature enable \
+  --name $APPCONFIG_NAME \
+  --feature "Waitlist" \
   --yes
 
 # Try registering for a full session - should show "Added to waitlist" message
@@ -957,12 +1324,25 @@ az appconfig feature enable `
 
 ### Test 3: Configuration Refresh
 
+PowerShell:
 ```powershell
 # Update max capacity
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $APPCONFIG_NAME `
   --key "ConferenceHub:MaxSessionCapacity" `
   --value "150" `
+  --yes
+
+# Wait 5 minutes or restart app
+# Configuration should be automatically refreshed
+```
+Bash:
+```bash
+# Update max capacity
+az appconfig kv set \
+  --name $APPCONFIG_NAME \
+  --key "ConferenceHub:MaxSessionCapacity" \
+  --value "150" \
   --yes
 
 # Wait 5 minutes or restart app
@@ -975,20 +1355,38 @@ az appconfig kv set `
 
 ### Step 1: Add Configuration to Function App
 
+PowerShell:
 ```powershell
 # Configure Key Vault reference for Functions
 az functionapp config appsettings set `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $FUNC_APP_NAME `
+  --resource-group $RG_NAME `
   --settings `
-    KeyVault__VaultUri="https://kv-conferencehub-az204.vault.azure.net/" `
-    AppConfiguration__Endpoint="https://appconfig-conferencehub.azconfig.io"
+    KeyVault__VaultUri="https://$KEYVAULT_NAME.vault.azure.net/" `
+    AppConfiguration__Endpoint="https://$APPCONFIG_NAME.azconfig.io"
+```
+Bash:
+```bash
+# Configure Key Vault reference for Functions
+az functionapp config appsettings set \
+  --name $FUNC_APP_NAME \
+  --resource-group $RG_NAME \
+  --settings \
+    KeyVault__VaultUri="https://$KEYVAULT_NAME.vault.azure.net/" \
+    AppConfiguration__Endpoint="https://$APPCONFIG_NAME.azconfig.io"
 ```
 
 ### Step 2: Update Functions Project
 
 Add packages to `ConferenceHubFunctions/ConferenceHubFunctions.csproj`:
+PowerShell:
 ```powershell
+cd ../ConferenceHubFunctions
+dotnet add package Azure.Identity
+dotnet add package Microsoft.Extensions.Configuration.AzureAppConfiguration
+```
+Bash:
+```bash
 cd ../ConferenceHubFunctions
 dotnet add package Azure.Identity
 dotnet add package Microsoft.Extensions.Configuration.AzureAppConfiguration

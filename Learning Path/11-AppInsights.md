@@ -19,39 +19,62 @@ In this final learning path, you'll implement comprehensive monitoring and obser
 
 ## Part 1: Create Application Insights Resource
 
+Set variables used in the commands:
+PowerShell:
+```powershell
+$RG_NAME="rg-conferencehub"
+$LOCATION="swedencentral"
+$APP_NAME="conferencehub-$RANDOM"
+$FUNC_APP_NAME="func-conferencehub-$RANDOM"
+$LOG_ANALYTICS_WORKSPACE="law-conferencehub-$RANDOM"
+$APPINSIGHTS_NAME="appinsights-conferencehub-$RANDOM"
+$KEYVAULT_NAME="kv-conferencehub-$RANDOM"
+```
+Bash:
+```bash
+RG_NAME="rg-conferencehub"
+LOCATION="swedencentral"
+APP_NAME="conferencehub-$RANDOM"
+FUNC_APP_NAME="func-conferencehub-$RANDOM"
+LOG_ANALYTICS_WORKSPACE="law-conferencehub-$RANDOM"
+APPINSIGHTS_NAME="appinsights-conferencehub-$RANDOM"
+KEYVAULT_NAME="kv-conferencehub-$RANDOM"
+```
+
 ### Step 1: Create Application Insights
 
+PowerShell:
 ```powershell
 # Create Log Analytics Workspace (required for Application Insights)
 az monitor log-analytics workspace create `
-  --resource-group rg-conferencehub `
-  --workspace-name law-conferencehub `
-  --location eastus
+  --resource-group $RG_NAME `
+  --workspace-name $LOG_ANALYTICS_WORKSPACE `
+  --location $LOCATION
 
 # Get workspace ID
 $workspaceId = az monitor log-analytics workspace show `
-  --resource-group rg-conferencehub `
-  --workspace-name law-conferencehub `
+  --resource-group $RG_NAME `
+  --workspace-name $LOG_ANALYTICS_WORKSPACE `
   --query id `
   --output tsv
 
 # Create Application Insights
 az monitor app-insights component create `
-  --app appinsights-conferencehub `
-  --location eastus `
-  --resource-group rg-conferencehub `
+  --app $APPINSIGHTS_NAME `
+  --location $LOCATION `
+  --resource-group $RG_NAME `
   --workspace $workspaceId
 
 # Get instrumentation key and connection string
 $instrumentationKey = az monitor app-insights component show `
-  --app appinsights-conferencehub `
-  --resource-group rg-conferencehub `
+  --app $APPINSIGHTS_NAME `
+  --resource-group $RG_NAME `
   --query instrumentationKey `
   --output tsv
 
 $connectionString = az monitor app-insights component show `
-  --app appinsights-conferencehub `
-  --resource-group rg-conferencehub `
+  --app $APPINSIGHTS_NAME `
+  --resource-group $RG_NAME `
   --query connectionString `
   --output tsv
 
@@ -60,37 +83,108 @@ Write-Host "Connection String: $connectionString"
 
 # Store in Key Vault
 az keyvault secret set `
-  --vault-name kv-conferencehub-az204 `
+  --vault-name $KEYVAULT_NAME `
   --name "ApplicationInsights--ConnectionString" `
+  --value $connectionString
+```
+Bash:
+```bash
+# Create Log Analytics Workspace (required for Application Insights)
+az monitor log-analytics workspace create \
+  --resource-group $RG_NAME \
+  --workspace-name $LOG_ANALYTICS_WORKSPACE \
+  --location $LOCATION
+
+# Get workspace ID
+workspaceId=$(az monitor log-analytics workspace show \
+  --resource-group $RG_NAME \
+  --workspace-name $LOG_ANALYTICS_WORKSPACE \
+  --query id \
+  --output tsv)
+
+# Create Application Insights
+az monitor app-insights component create \
+  --app $APPINSIGHTS_NAME \
+  --location $LOCATION \
+  --resource-group $RG_NAME \
+  --workspace $workspaceId
+
+# Get instrumentation key and connection string
+instrumentationKey=$(az monitor app-insights component show \
+  --app $APPINSIGHTS_NAME \
+  --resource-group $RG_NAME \
+  --query instrumentationKey \
+  --output tsv)
+
+connectionString=$(az monitor app-insights component show \
+  --app $APPINSIGHTS_NAME \
+  --resource-group $RG_NAME \
+  --query connectionString \
+  --output tsv)
+
+echo "Instrumentation Key: $instrumentationKey"
+echo "Connection String: $connectionString"
+
+# Store in Key Vault
+az keyvault secret set \
+  --vault-name $KEYVAULT_NAME \
+  --name "ApplicationInsights--ConnectionString" \
   --value $connectionString
 ```
 
 ### Step 2: Enable Application Insights for Web App
 
+PowerShell:
 ```powershell
 # Enable Application Insights on Web App
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
   --settings `
     APPLICATIONINSIGHTS_CONNECTION_STRING="$connectionString" `
     ApplicationInsightsAgent_EXTENSION_VERSION="~3"
 
 # Enable always on (for continuous monitoring)
 az webapp config set `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
+  --always-on true
+```
+Bash:
+```bash
+# Enable Application Insights on Web App
+az webapp config appsettings set \
+  --name $APP_NAME \
+  --resource-group $RG_NAME \
+  --settings \
+    APPLICATIONINSIGHTS_CONNECTION_STRING="$connectionString" \
+    ApplicationInsightsAgent_EXTENSION_VERSION="~3"
+
+# Enable always on (for continuous monitoring)
+az webapp config set \
+  --name $APP_NAME \
+  --resource-group $RG_NAME \
   --always-on true
 ```
 
 ### Step 3: Enable Application Insights for Functions
 
+PowerShell:
 ```powershell
 # Enable Application Insights for Function App
 az functionapp config appsettings set `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $FUNC_APP_NAME `
+  --resource-group $RG_NAME `
   --settings `
+    APPLICATIONINSIGHTS_CONNECTION_STRING="$connectionString"
+```
+Bash:
+```bash
+# Enable Application Insights for Function App
+az functionapp config appsettings set \
+  --name $FUNC_APP_NAME \
+  --resource-group $RG_NAME \
+  --settings \
     APPLICATIONINSIGHTS_CONNECTION_STRING="$connectionString"
 ```
 
@@ -100,7 +194,14 @@ az functionapp config appsettings set `
 
 ### Step 1: Add NuGet Packages
 
+PowerShell:
 ```powershell
+cd ConferenceHub
+dotnet add package Microsoft.ApplicationInsights.AspNetCore
+dotnet add package Microsoft.ApplicationInsights.WorkerService
+```
+Bash:
+```bash
 cd ConferenceHub
 dotnet add package Microsoft.ApplicationInsights.AspNetCore
 dotnet add package Microsoft.ApplicationInsights.WorkerService
@@ -738,7 +839,20 @@ exceptions
 
 ### Step 2: Create Dashboard
 
+PowerShell:
 ```powershell
+# Create dashboard using Azure Portal
+# Navigate to: Application Insights → Dashboards → New Dashboard
+# Add the following tiles:
+# 1. Failed requests
+# 2. Server response time
+# 3. Server requests
+# 4. Availability
+# 5. Custom metric: Session Views
+# 6. Custom metric: Registration Success Rate
+```
+Bash:
+```bash
 # Create dashboard using Azure Portal
 # Navigate to: Application Insights → Dashboards → New Dashboard
 # Add the following tiles:
@@ -767,54 +881,104 @@ Create workbook in Azure Portal:
 
 ### Step 1: Create Alert for High Error Rate
 
+PowerShell:
 ```powershell
 # Create action group for notifications
 az monitor action-group create `
   --name ag-conferencehub-alerts `
-  --resource-group rg-conferencehub `
+  --resource-group $RG_NAME `
   --short-name CHAlerts `
   --email-receiver admin soren@reinke.dk
 
 # Create alert rule for high error rate
 az monitor metrics alert create `
   --name alert-high-error-rate `
-  --resource-group rg-conferencehub `
-  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/rg-conferencehub/providers/microsoft.insights/components/appinsights-conferencehub" `
+  --resource-group $RG_NAME `
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/microsoft.insights/components/$APPINSIGHTS_NAME" `
   --condition "count requests/failed > 10" `
   --window-size 5m `
   --evaluation-frequency 1m `
   --action ag-conferencehub-alerts `
   --description "Alert when error rate exceeds threshold"
 ```
+Bash:
+```bash
+# Create action group for notifications
+az monitor action-group create \
+  --name ag-conferencehub-alerts \
+  --resource-group $RG_NAME \
+  --short-name CHAlerts \
+  --email-receiver admin soren@reinke.dk
+
+# Create alert rule for high error rate
+az monitor metrics alert create \
+  --name alert-high-error-rate \
+  --resource-group $RG_NAME \
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/microsoft.insights/components/$APPINSIGHTS_NAME" \
+  --condition "count requests/failed > 10" \
+  --window-size 5m \
+  --evaluation-frequency 1m \
+  --action ag-conferencehub-alerts \
+  --description "Alert when error rate exceeds threshold"
+```
 
 ### Step 2: Create Alert for Slow Response Time
 
+PowerShell:
 ```powershell
 # Alert for response time > 3 seconds
 az monitor metrics alert create `
   --name alert-slow-response `
-  --resource-group rg-conferencehub `
-  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/rg-conferencehub/providers/microsoft.insights/components/appinsights-conferencehub" `
+  --resource-group $RG_NAME `
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/microsoft.insights/components/$APPINSIGHTS_NAME" `
   --condition "avg requests/duration > 3000" `
   --window-size 5m `
   --evaluation-frequency 1m `
   --action ag-conferencehub-alerts `
   --description "Alert when response time is too slow"
 ```
+Bash:
+```bash
+# Alert for response time > 3 seconds
+az monitor metrics alert create \
+  --name alert-slow-response \
+  --resource-group $RG_NAME \
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/microsoft.insights/components/$APPINSIGHTS_NAME" \
+  --condition "avg requests/duration > 3000" \
+  --window-size 5m \
+  --evaluation-frequency 1m \
+  --action ag-conferencehub-alerts \
+  --description "Alert when response time is too slow"
+```
 
 ### Step 3: Create Custom Metric Alert
 
+PowerShell:
 ```powershell
 # Alert for low registration success rate
 az monitor scheduled-query create `
   --name alert-low-registration-rate `
-  --resource-group rg-conferencehub `
-  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/rg-conferencehub/providers/microsoft.insights/components/appinsights-conferencehub" `
+  --resource-group $RG_NAME `
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/microsoft.insights/components/$APPINSIGHTS_NAME" `
   --condition "count > 5" `
   --condition-query "customEvents | where name == 'RegistrationAttempt' and customDimensions.Success == 'False' | summarize FailureCount = count()" `
   --window-duration PT5M `
   --evaluation-frequency PT1M `
   --action-groups ag-conferencehub-alerts `
+  --description "Alert when registration failures exceed threshold"
+```
+Bash:
+```bash
+# Alert for low registration success rate
+az monitor scheduled-query create \
+  --name alert-low-registration-rate \
+  --resource-group $RG_NAME \
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/microsoft.insights/components/$APPINSIGHTS_NAME" \
+  --condition "count > 5" \
+  --condition-query "customEvents | where name == 'RegistrationAttempt' and customDimensions.Success == 'False' | summarize FailureCount = count()" \
+  --window-duration PT5M \
+  --evaluation-frequency PT1M \
+  --action-groups ag-conferencehub-alerts \
   --description "Alert when registration failures exceed threshold"
 ```
 
@@ -824,21 +988,39 @@ az monitor scheduled-query create `
 
 ### Step 1: Create URL Ping Test
 
+PowerShell:
 ```powershell
 # Create availability test
 az monitor app-insights web-test create `
-  --resource-group rg-conferencehub `
+  --resource-group $RG_NAME `
   --name "Homepage Availability" `
-  --location eastus `
+  --location $LOCATION `
   --web-test-kind ping `
   --frequency 300 `
   --timeout 30 `
   --enabled true `
   --defined-web-test-name "Homepage Test" `
   --synthetic-monitor-id "homepage-test" `
-  --tags "hidden-link:/subscriptions/YOUR_SUB_ID/resourceGroups/rg-conferencehub/providers/microsoft.insights/components/appinsights-conferencehub=Resource" `
+  --tags "hidden-link:/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/microsoft.insights/components/$APPINSIGHTS_NAME=Resource" `
   --location-web-test-ids "us-il-ch1-azr" "us-va-ash-azr" "emea-nl-ams-azr" `
-  --web-test-request-url "https://conferencehub-demo-az204reinke.azurewebsites.net"
+  --web-test-request-url "https://$APP_NAME.azurewebsites.net"
+```
+Bash:
+```bash
+# Create availability test
+az monitor app-insights web-test create \
+  --resource-group $RG_NAME \
+  --name "Homepage Availability" \
+  --location $LOCATION \
+  --web-test-kind ping \
+  --frequency 300 \
+  --timeout 30 \
+  --enabled true \
+  --defined-web-test-name "Homepage Test" \
+  --synthetic-monitor-id "homepage-test" \
+  --tags "hidden-link:/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/microsoft.insights/components/$APPINSIGHTS_NAME=Resource" \
+  --location-web-test-ids "us-il-ch1-azr" "us-va-ash-azr" "emea-nl-ams-azr" \
+  --web-test-request-url "https://$APP_NAME.azurewebsites.net"
 ```
 
 ### Step 2: Monitor Availability
@@ -854,27 +1036,56 @@ View availability in Azure Portal:
 
 ### Step 1: Deploy Updated Applications
 
+PowerShell:
 ```powershell
 # Deploy Web App
 cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
-  --name conferencehub-demo-az204reinke `
-  --src ./app.zip
+az webapp deploy `
+  --resource-group $RG_NAME `
+  --name $APP_NAME `
+  --src-path ./app.zip
+  --type zip
 
 # Deploy Functions
 cd ../ConferenceHubFunctions
-func azure functionapp publish func-conferencehub-az204reinke
+func azure functionapp publish $FUNC_APP_NAME
+```
+Bash:
+```bash
+# Deploy Web App
+cd ConferenceHub
+dotnet publish -c Release -o ./publish
+cd publish
+zip -r ../app.zip .
+cd ..
+az webapp deploy \
+  --resource-group $RG_NAME \
+  --name $APP_NAME \
+  --src-path ./app.zip
+  --type zip
+
+# Deploy Functions
+cd ../ConferenceHubFunctions
+func azure functionapp publish $FUNC_APP_NAME
 ```
 
 ### Step 2: Generate Test Traffic
 
+PowerShell:
 ```powershell
 # Generate traffic to create telemetry
 for ($i = 1; $i -le 100; $i++) {
-    Invoke-WebRequest -Uri "https://conferencehub-demo-az204reinke.azurewebsites.net" -UseBasicParsing
+    Invoke-WebRequest -Uri "https://$APP_NAME.azurewebsites.net" -UseBasicParsing
+    Start-Sleep -Milliseconds 500
+}
+```
+Bash:
+```bash
+# Generate traffic to create telemetry
+for ($i = 1; $i -le 100; $i++) {
+    Invoke-WebRequest -Uri "https://$APP_NAME.azurewebsites.net" -UseBasicParsing
     Start-Sleep -Milliseconds 500
 }
 ```

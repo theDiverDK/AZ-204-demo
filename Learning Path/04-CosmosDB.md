@@ -18,52 +18,123 @@ In this learning path, you'll migrate the ConferenceHub application from JSON fi
 
 ## Part 1: Create Azure Cosmos DB Resources
 
+Set variables used in the commands:
+PowerShell:
+```powershell
+$RG_NAME="$RG_NAME"
+$LOCATION="swedencentral"
+$APP_NAME="conferencehub-$RANDOM"
+$FUNC_APP_NAME="func-conferencehub-$RANDOM"
+$COSMOS_ACCOUNT="cosmos-conferencehub-$RANDOM"
+$COSMOS_DB_NAME="ConferenceHubDB"
+$COSMOS_SESSIONS_CONTAINER="Sessions"
+$COSMOS_REGISTRATIONS_CONTAINER="Registrations"
+```
+Bash:
+```bash
+RG_NAME="$RG_NAME"
+LOCATION="swedencentral"
+APP_NAME="conferencehub-$RANDOM"
+FUNC_APP_NAME="func-conferencehub-$RANDOM"
+COSMOS_ACCOUNT="cosmos-conferencehub-$RANDOM"
+COSMOS_DB_NAME="ConferenceHubDB"
+COSMOS_SESSIONS_CONTAINER="Sessions"
+COSMOS_REGISTRATIONS_CONTAINER="Registrations"
+```
+
 ### Step 1: Create Cosmos DB Account
 
+PowerShell:
 ```powershell
 # Create Cosmos DB account (SQL API)
 az cosmosdb create `
-  --name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $COSMOS_ACCOUNT `
+  --resource-group $RG_NAME `
   --kind GlobalDocumentDB `
-  --locations regionName=eastus failoverPriority=0 isZoneRedundant=False `
+  --locations regionName=$LOCATION failoverPriority=0 isZoneRedundant=False `
   --default-consistency-level Session `
   --enable-automatic-failover false
 
 # Get connection string
 az cosmosdb keys list `
-  --name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $COSMOS_ACCOUNT `
+  --resource-group $RG_NAME `
   --type connection-strings `
   --query "connectionStrings[0].connectionString" `
+  --output tsv
+```
+Bash:
+```bash
+# Create Cosmos DB account (SQL API)
+az cosmosdb create \
+  --name $COSMOS_ACCOUNT \
+  --resource-group $RG_NAME \
+  --kind GlobalDocumentDB \
+  --locations regionName=$LOCATION failoverPriority=0 isZoneRedundant=False \
+  --default-consistency-level Session \
+  --enable-automatic-failover false
+
+# Get connection string
+az cosmosdb keys list \
+  --name $COSMOS_ACCOUNT \
+  --resource-group $RG_NAME \
+  --type connection-strings \
+  --query "connectionStrings[0].connectionString" \
   --output tsv
 ```
 
 ### Step 2: Create Database and Containers
 
+PowerShell:
 ```powershell
 # Create database
 az cosmosdb sql database create `
-  --account-name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
-  --name ConferenceHubDB
+  --account-name $COSMOS_ACCOUNT `
+  --resource-group $RG_NAME `
+  --name $COSMOS_DB_NAME
 
 # Create Sessions container (partition by /conferenceId or /track)
 az cosmosdb sql container create `
-  --account-name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
-  --database-name ConferenceHubDB `
-  --name Sessions `
+  --account-name $COSMOS_ACCOUNT `
+  --resource-group $RG_NAME `
+  --database-name $COSMOS_DB_NAME `
+  --name $COSMOS_SESSIONS_CONTAINER `
   --partition-key-path "/conferenceId" `
   --throughput 400
 
 # Create Registrations container (partition by /sessionId)
 az cosmosdb sql container create `
-  --account-name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
-  --database-name ConferenceHubDB `
-  --name Registrations `
+  --account-name $COSMOS_ACCOUNT `
+  --resource-group $RG_NAME `
+  --database-name $COSMOS_DB_NAME `
+  --name $COSMOS_REGISTRATIONS_CONTAINER `
   --partition-key-path "/sessionId" `
+  --throughput 400
+```
+Bash:
+```bash
+# Create database
+az cosmosdb sql database create \
+  --account-name $COSMOS_ACCOUNT \
+  --resource-group $RG_NAME \
+  --name $COSMOS_DB_NAME
+
+# Create Sessions container (partition by /conferenceId or /track)
+az cosmosdb sql container create \
+  --account-name $COSMOS_ACCOUNT \
+  --resource-group $RG_NAME \
+  --database-name $COSMOS_DB_NAME \
+  --name $COSMOS_SESSIONS_CONTAINER \
+  --partition-key-path "/conferenceId" \
+  --throughput 400
+
+# Create Registrations container (partition by /sessionId)
+az cosmosdb sql container create \
+  --account-name $COSMOS_ACCOUNT \
+  --resource-group $RG_NAME \
+  --database-name $COSMOS_DB_NAME \
+  --name $COSMOS_REGISTRATIONS_CONTAINER \
+  --partition-key-path "/sessionId" \
   --throughput 400
 ```
 
@@ -73,7 +144,13 @@ az cosmosdb sql container create `
 
 ### Step 1: Add NuGet Package
 
+PowerShell:
 ```powershell
+cd ConferenceHub
+dotnet add package Microsoft.Azure.Cosmos
+```
+Bash:
+```bash
 cd ConferenceHub
 dotnet add package Microsoft.Azure.Cosmos
 ```
@@ -902,7 +979,13 @@ public class DataMigration
 ```
 
 Run the migration:
+PowerShell:
 ```powershell
+# Add to Program.cs temporarily or create a console app
+await DataMigration.MigrateSessionsAsync(cosmosConnectionString, "ConferenceHubDB");
+```
+Bash:
+```bash
 # Add to Program.cs temporarily or create a console app
 await DataMigration.MigrateSessionsAsync(cosmosConnectionString, "ConferenceHubDB");
 ```
@@ -1015,44 +1098,88 @@ host.Run();
 
 ### Step 1: Update App Settings
 
+PowerShell:
 ```powershell
 # Get Cosmos DB connection string
 $cosmosConnectionString = az cosmosdb keys list `
-  --name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $COSMOS_ACCOUNT `
+  --resource-group $RG_NAME `
   --type connection-strings `
   --query "connectionStrings[0].connectionString" `
   --output tsv
 
 # Update Web App settings
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
   --settings CosmosDb__ConnectionString="$cosmosConnectionString" `
-             CosmosDb__DatabaseName="ConferenceHubDB"
+             CosmosDb__DatabaseName="$COSMOS_DB_NAME"
 
 # Update Function App settings
 az functionapp config appsettings set `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $FUNC_APP_NAME `
+  --resource-group $RG_NAME `
+  --settings CosmosDbConnectionString="$cosmosConnectionString"
+```
+Bash:
+```bash
+# Get Cosmos DB connection string
+cosmosConnectionString=$(az cosmosdb keys list \
+  --name $COSMOS_ACCOUNT \
+  --resource-group $RG_NAME \
+  --type connection-strings \
+  --query "connectionStrings[0].connectionString" \
+  --output tsv)
+
+# Update Web App settings
+az webapp config appsettings set \
+  --name $APP_NAME \
+  --resource-group $RG_NAME \
+  --settings CosmosDb__ConnectionString="$cosmosConnectionString" \
+             CosmosDb__DatabaseName="$COSMOS_DB_NAME"
+
+# Update Function App settings
+az functionapp config appsettings set \
+  --name $FUNC_APP_NAME \
+  --resource-group $RG_NAME \
   --settings CosmosDbConnectionString="$cosmosConnectionString"
 ```
 
 ### Step 2: Deploy Updated Applications
 
+PowerShell:
 ```powershell
 # Deploy Web App
 cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
-  --name conferencehub-demo-az204reinke `
-  --src ./app.zip
+az webapp deploy `
+  --resource-group $RG_NAME `
+  --name $APP_NAME `
+  --src-path ./app.zip
+  --type zip
 
 # Deploy Functions
 cd ../ConferenceHub.Functions
-func azure functionapp publish func-conferencehub-az204reinke
+func azure functionapp publish $FUNC_APP_NAME
+```
+Bash:
+```bash
+# Deploy Web App
+cd ConferenceHub
+dotnet publish -c Release -o ./publish
+cd publish
+zip -r ../app.zip .
+cd ..
+az webapp deploy \
+  --resource-group $RG_NAME \
+  --name $APP_NAME \
+  --src-path ./app.zip
+  --type zip
+
+# Deploy Functions
+cd ../ConferenceHub.Functions
+func azure functionapp publish $FUNC_APP_NAME
 ```
 
 ---

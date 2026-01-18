@@ -19,14 +19,37 @@ In this learning path, you'll deploy Azure API Management (APIM) to expose and s
 
 ## Part 1: Create API Management Instance
 
+Set variables used in the commands:
+PowerShell:
+```powershell
+$RG_NAME="rg-conferencehub"
+$LOCATION="swedencentral"
+$APP_NAME="conferencehub-$RANDOM"
+$FUNC_APP_NAME="func-conferencehub-$RANDOM"
+$APIM_NAME="apim-conferencehub-$RANDOM"
+$KEYVAULT_NAME="kv-conferencehub-$RANDOM"
+$APPCONFIG_NAME="appconfig-conferencehub-$RANDOM"
+```
+Bash:
+```bash
+RG_NAME="rg-conferencehub"
+LOCATION="swedencentral"
+APP_NAME="conferencehub-$RANDOM"
+FUNC_APP_NAME="func-conferencehub-$RANDOM"
+APIM_NAME="apim-conferencehub-$RANDOM"
+KEYVAULT_NAME="kv-conferencehub-$RANDOM"
+APPCONFIG_NAME="appconfig-conferencehub-$RANDOM"
+```
+
 ### Step 1: Provision APIM Instance
 
+PowerShell:
 ```powershell
 # Create API Management instance (this takes 30-45 minutes!)
 az apim create `
-  --name apim-conferencehub `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $APIM_NAME `
+  --resource-group $RG_NAME `
+  --location $LOCATION `
   --publisher-email soren@reinke.dk `
   --publisher-name "ConferenceHub" `
   --sku-name Developer `
@@ -34,8 +57,29 @@ az apim create `
 
 # Check provisioning status
 az apim show `
-  --name apim-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $APIM_NAME `
+  --resource-group $RG_NAME `
+  --query "provisioningState"
+
+# Wait until status is "Succeeded" before continuing
+# You can check status every few minutes
+```
+Bash:
+```bash
+# Create API Management instance (this takes 30-45 minutes!)
+az apim create \
+  --name $APIM_NAME \
+  --resource-group $RG_NAME \
+  --location $LOCATION \
+  --publisher-email soren@reinke.dk \
+  --publisher-name "ConferenceHub" \
+  --sku-name Developer \
+  --no-wait
+
+# Check provisioning status
+az apim show \
+  --name $APIM_NAME \
+  --resource-group $RG_NAME \
   --query "provisioningState"
 
 # Wait until status is "Succeeded" before continuing
@@ -50,15 +94,27 @@ Alternative: Use Azure Portal
 
 ### Step 2: Get APIM Gateway URL
 
+PowerShell:
 ```powershell
 # Once provisioning is complete
 $apimGatewayUrl = az apim show `
-  --name apim-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $APIM_NAME `
+  --resource-group $RG_NAME `
   --query "gatewayUrl" `
   --output tsv
 
 Write-Host "APIM Gateway URL: $apimGatewayUrl"
+```
+Bash:
+```bash
+# Once provisioning is complete
+apimGatewayUrl=$(az apim show \
+  --name $APIM_NAME \
+  --resource-group $RG_NAME \
+  --query "gatewayUrl" \
+  --output tsv)
+
+echo "APIM Gateway URL: $apimGatewayUrl"
 ```
 
 ---
@@ -68,7 +124,13 @@ Write-Host "APIM Gateway URL: $apimGatewayUrl"
 ### Step 1: Generate OpenAPI Specification
 
 Install Swashbuckle for OpenAPI/Swagger support:
+PowerShell:
 ```powershell
+cd ConferenceHub
+dotnet add package Swashbuckle.AspNetCore
+```
+Bash:
+```bash
 cd ConferenceHub
 dotnet add package Swashbuckle.AspNetCore
 ```
@@ -157,73 +219,146 @@ app.Run();
 ```
 
 Redeploy the application:
+PowerShell:
 ```powershell
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
-  --name conferencehub-demo-az204reinke `
-  --src ./app.zip
+az webapp deploy `
+  --resource-group $RG_NAME `
+  --name $APP_NAME `
+  --src-path ./app.zip
+  --type zip
+```
+Bash:
+```bash
+dotnet publish -c Release -o ./publish
+cd publish
+zip -r ../app.zip .
+cd ..
+az webapp deploy \
+  --resource-group $RG_NAME \
+  --name $APP_NAME \
+  --src-path ./app.zip
+  --type zip
 ```
 
 ### Step 2: Import API from OpenAPI Spec
 
+PowerShell:
 ```powershell
 # Import API from Swagger/OpenAPI endpoint
 az apim api import `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --path "conferencehub" `
   --api-id "conferencehub-api" `
   --display-name "ConferenceHub API" `
   --specification-format OpenApi `
-  --specification-url "https://conferencehub-demo-az204reinke.azurewebsites.net/swagger/v1/swagger.json" `
+  --specification-url "https://$APP_NAME.azurewebsites.net/swagger/v1/swagger.json" `
   --protocols https
 
 Write-Host "API imported successfully"
 ```
+Bash:
+```bash
+# Import API from Swagger/OpenAPI endpoint
+az apim api import \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --path "conferencehub" \
+  --api-id "conferencehub-api" \
+  --display-name "ConferenceHub API" \
+  --specification-format OpenApi \
+  --specification-url "https://$APP_NAME.azurewebsites.net/swagger/v1/swagger.json" \
+  --protocols https
+
+echo "API imported successfully"
+```
 
 ### Step 3: Import Azure Functions API
 
+PowerShell:
 ```powershell
 # Get Function App host key
 $functionAppKey = az functionapp keys list `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $FUNC_APP_NAME `
+  --resource-group $RG_NAME `
   --query "functionKeys.default" `
   --output tsv
 
 # Import Function App
 az apim api import `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --path "functions" `
   --api-id "functions-api" `
   --display-name "ConferenceHub Functions" `
-  --service-url "https://func-conferencehub-az204reinke.azurewebsites.net/api" `
+  --service-url "https://$FUNC_APP_NAME.azurewebsites.net/api" `
   --specification-format OpenApiJson `
+  --specification-path "functions-openapi.json"
+```
+Bash:
+```bash
+# Get Function App host key
+functionAppKey=$(az functionapp keys list \
+  --name $FUNC_APP_NAME \
+  --resource-group $RG_NAME \
+  --query "functionKeys.default" \
+  --output tsv)
+
+# Import Function App
+az apim api import \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --path "functions" \
+  --api-id "functions-api" \
+  --display-name "ConferenceHub Functions" \
+  --service-url "https://$FUNC_APP_NAME.azurewebsites.net/api" \
+  --specification-format OpenApiJson \
   --specification-path "functions-openapi.json"
 ```
 
 If you don't have OpenAPI spec for Functions, create manually:
+PowerShell:
 ```powershell
 # Create API manually
 az apim api create `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --api-id "functions-api" `
   --path "functions" `
   --display-name "ConferenceHub Functions" `
   --protocols https `
-  --service-url "https://func-conferencehub-az204reinke.azurewebsites.net/api"
+  --service-url "https://$FUNC_APP_NAME.azurewebsites.net/api"
 
 # Add SendConfirmation operation
 az apim api operation create `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --api-id "functions-api" `
   --url-template "/SendConfirmation" `
   --method POST `
+  --display-name "Send Confirmation Email"
+```
+Bash:
+```bash
+# Create API manually
+az apim api create \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --api-id "functions-api" \
+  --path "functions" \
+  --display-name "ConferenceHub Functions" \
+  --protocols https \
+  --service-url "https://$FUNC_APP_NAME.azurewebsites.net/api"
+
+# Add SendConfirmation operation
+az apim api operation create \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --api-id "functions-api" \
+  --url-template "/SendConfirmation" \
+  --method POST \
   --display-name "Send Confirmation Email"
 ```
 
@@ -233,11 +368,12 @@ az apim api operation create `
 
 ### Step 1: Create Products
 
+PowerShell:
 ```powershell
 # Create Free tier product
 az apim product create `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --product-id "free-tier" `
   --product-name "Free Tier" `
   --description "Free tier with rate limits" `
@@ -247,8 +383,8 @@ az apim product create `
 
 # Create Premium tier product
 az apim product create `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --product-id "premium-tier" `
   --product-name "Premium Tier" `
   --description "Premium tier with higher limits" `
@@ -258,45 +394,102 @@ az apim product create `
 
 Write-Host "Products created"
 ```
+Bash:
+```bash
+# Create Free tier product
+az apim product create \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --product-id "free-tier" \
+  --product-name "Free Tier" \
+  --description "Free tier with rate limits" \
+  --subscription-required true \
+  --approval-required false \
+  --state published
+
+# Create Premium tier product
+az apim product create \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --product-id "premium-tier" \
+  --product-name "Premium Tier" \
+  --description "Premium tier with higher limits" \
+  --subscription-required true \
+  --approval-required true \
+  --state published
+
+echo "Products created"
+```
 
 ### Step 2: Associate APIs with Products
 
+PowerShell:
 ```powershell
 # Add ConferenceHub API to Free tier
 az apim product api add `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --product-id "free-tier" `
   --api-id "conferencehub-api"
 
 # Add Functions API to Free tier
 az apim product api add `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --product-id "free-tier" `
   --api-id "functions-api"
 
 # Add both APIs to Premium tier
 az apim product api add `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --product-id "premium-tier" `
   --api-id "conferencehub-api"
 
 az apim product api add `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --product-id "premium-tier" `
+  --api-id "functions-api"
+```
+Bash:
+```bash
+# Add ConferenceHub API to Free tier
+az apim product api add \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --product-id "free-tier" \
+  --api-id "conferencehub-api"
+
+# Add Functions API to Free tier
+az apim product api add \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --product-id "free-tier" \
+  --api-id "functions-api"
+
+# Add both APIs to Premium tier
+az apim product api add \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --product-id "premium-tier" \
+  --api-id "conferencehub-api"
+
+az apim product api add \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --product-id "premium-tier" \
   --api-id "functions-api"
 ```
 
 ### Step 3: Create Subscriptions
 
+PowerShell:
 ```powershell
 # Create subscription for testing
 az apim subscription create `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --subscription-id "test-free-sub" `
   --name "Test Free Subscription" `
   --scope "/products/free-tier" `
@@ -304,14 +497,36 @@ az apim subscription create `
 
 # Get subscription keys
 $subscriptionKey = az apim subscription show `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --subscription-id "test-free-sub" `
   --query "primaryKey" `
   --output tsv
 
 Write-Host "Subscription Key: $subscriptionKey"
 Write-Host "Save this key for testing!"
+```
+Bash:
+```bash
+# Create subscription for testing
+az apim subscription create \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --subscription-id "test-free-sub" \
+  --name "Test Free Subscription" \
+  --scope "/products/free-tier" \
+  --state active
+
+# Get subscription keys
+subscriptionKey=$(az apim subscription show \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --subscription-id "test-free-sub" \
+  --query "primaryKey" \
+  --output tsv)
+
+echo "Subscription Key: $subscriptionKey"
+echo "Save this key for testing!"
 ```
 
 ---
@@ -332,7 +547,7 @@ Create `free-tier-policy.xml`:
         <quota calls="1000" renewal-period="86400" />
         
         <!-- Set backend URL -->
-        <set-backend-service base-url="https://conferencehub-demo-az204reinke.azurewebsites.net" />
+        <set-backend-service base-url="https://$APP_NAME.azurewebsites.net" />
         
         <!-- Add subscription key to header -->
         <set-header name="X-Subscription-Key" exists-action="override">
@@ -367,11 +582,20 @@ Create `free-tier-policy.xml`:
 ```
 
 Apply policy:
+PowerShell:
 ```powershell
 az apim product policy create `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --product-id "free-tier" `
+  --policy-xml-path "free-tier-policy.xml"
+```
+Bash:
+```bash
+az apim product policy create \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --product-id "free-tier" \
   --policy-xml-path "free-tier-policy.xml"
 ```
 
@@ -388,7 +612,7 @@ Create `premium-tier-policy.xml`:
         <!-- Quota: 10000 calls per day -->
         <quota calls="10000" renewal-period="86400" />
         
-        <set-backend-service base-url="https://conferencehub-demo-az204reinke.azurewebsites.net" />
+        <set-backend-service base-url="https://$APP_NAME.azurewebsites.net" />
         
         <set-header name="X-Subscription-Key" exists-action="override">
             <value>@(context.Subscription.Key)</value>
@@ -420,11 +644,20 @@ Create `premium-tier-policy.xml`:
 </policies>
 ```
 
+PowerShell:
 ```powershell
 az apim product policy create `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --product-id "premium-tier" `
+  --policy-xml-path "premium-tier-policy.xml"
+```
+Bash:
+```bash
+az apim product policy create \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --product-id "premium-tier" \
   --policy-xml-path "premium-tier-policy.xml"
 ```
 
@@ -460,12 +693,22 @@ Create `api-caching-policy.xml`:
 ```
 
 Apply to specific operation:
+PowerShell:
 ```powershell
 az apim api operation policy create `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --api-id "conferencehub-api" `
   --operation-id "Sessions_Index" `
+  --policy-xml-path "api-caching-policy.xml"
+```
+Bash:
+```bash
+az apim api operation policy create \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --api-id "conferencehub-api" \
+  --operation-id "Sessions_Index" \
   --policy-xml-path "api-caching-policy.xml"
 ```
 
@@ -561,11 +804,20 @@ Create `jwt-validation-policy.xml`:
 ```
 
 Apply to API:
+PowerShell:
 ```powershell
 az apim api policy create `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --api-id "conferencehub-api" `
+  --policy-xml-path "jwt-validation-policy.xml"
+```
+Bash:
+```bash
+az apim api policy create \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --api-id "conferencehub-api" \
   --policy-xml-path "jwt-validation-policy.xml"
 ```
 
@@ -612,13 +864,13 @@ Update `ConferenceHub/appsettings.json`:
   },
   "AllowedHosts": "*",
   "KeyVault": {
-    "VaultUri": "https://kv-conferencehub-az204.vault.azure.net/"
+    "VaultUri": "https://$KEYVAULT_NAME.vault.azure.net/"
   },
   "AppConfiguration": {
-    "Endpoint": "https://appconfig-conferencehub.azconfig.io"
+    "Endpoint": "https://$APPCONFIG_NAME.azconfig.io"
   },
   "ApiManagement": {
-    "GatewayUrl": "https://apim-conferencehub.azure-api.net",
+    "GatewayUrl": "https://$APIM_NAME.azure-api.net",
     "SubscriptionKey": "YOUR_SUBSCRIPTION_KEY"
   },
   "AzureAd": {
@@ -629,7 +881,7 @@ Update `ConferenceHub/appsettings.json`:
     "SignedOutCallbackPath": "/signout-callback-oidc"
   },
   "AzureFunctions": {
-    "SendConfirmationUrl": "https://apim-conferencehub.azure-api.net/functions/SendConfirmation",
+    "SendConfirmationUrl": "https://$APIM_NAME.azure-api.net/functions/SendConfirmation",
     "FunctionKey": ""
   }
 }
@@ -690,9 +942,10 @@ builder.Services.AddHttpClient<IApiManagementClient, ApiManagementClient>(client
 
 ### Test 1: Call API with Subscription Key
 
+PowerShell:
 ```powershell
 # Set variables
-$apimUrl = "https://apim-conferencehub.azure-api.net"
+$apimUrl = "https://$APIM_NAME.azure-api.net"
 $subscriptionKey = "YOUR_SUBSCRIPTION_KEY"
 
 # Test GET sessions
@@ -705,9 +958,21 @@ $response = Invoke-RestMethod `
 
 $response | ConvertTo-Json -Depth 10
 ```
+Bash:
+```bash
+# Set variables
+apimUrl="https://$APIM_NAME.azure-api.net"
+subscriptionKey="YOUR_SUBSCRIPTION_KEY"
+
+# Test GET sessions
+curl -sS \
+  -H "Ocp-Apim-Subscription-Key: $subscriptionKey" \
+  "$apimUrl/conferencehub/sessions"
+```
 
 ### Test 2: Test Rate Limiting
 
+PowerShell:
 ```powershell
 # Make 101 requests to trigger rate limit
 for ($i = 1; $i -le 101; $i++) {
@@ -727,9 +992,24 @@ for ($i = 1; $i -le 101; $i++) {
     }
 }
 ```
+Bash:
+```bash
+# Make 101 requests to trigger rate limit
+for i in $(seq 1 101); do
+  status=$(curl -s -o /dev/null -w "%{http_code}" \
+    -H "Ocp-Apim-Subscription-Key: $subscriptionKey" \
+    "$apimUrl/conferencehub/sessions")
+  if [ "$status" = "429" ]; then
+    echo "Request $i : Rate limit exceeded ($status)"
+    break
+  fi
+  echo "Request $i : Success ($status)"
+done
+```
 
 ### Test 3: Test Without Subscription Key
 
+PowerShell:
 ```powershell
 # This should fail with 401 Unauthorized
 try {
@@ -741,9 +1021,17 @@ catch {
     Write-Host "Expected error: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 ```
+Bash:
+```bash
+# This should fail with 401 Unauthorized
+status=$(curl -s -o /dev/null -w "%{http_code}" \
+  "$apimUrl/conferencehub/sessions")
+echo "Status: $status (expected 401)"
+```
 
 ### Test 4: Test Caching
 
+PowerShell:
 ```powershell
 # First request - should hit backend
 Measure-Command {
@@ -765,6 +1053,18 @@ Measure-Command {
       }
 }
 ```
+Bash:
+```bash
+# First request - should hit backend
+time curl -s -o /dev/null \
+  -H "Ocp-Apim-Subscription-Key: $subscriptionKey" \
+  "$apimUrl/conferencehub/sessions/1"
+
+# Second request - should be cached (faster)
+time curl -s -o /dev/null \
+  -H "Ocp-Apim-Subscription-Key: $subscriptionKey" \
+  "$apimUrl/conferencehub/sessions/1"
+```
 
 ---
 
@@ -772,15 +1072,28 @@ Measure-Command {
 
 ### Step 1: Enable Developer Portal
 
+PowerShell:
 ```powershell
 # The Developer Portal is enabled by default in APIM
-# Access it at: https://apim-conferencehub.developer.azure-api.net
+# Access it at: https://$APIM_NAME.developer.azure-api.net
 
 # Publish the portal
 az apim api revision create `
-  --resource-group rg-conferencehub `
-  --service-name apim-conferencehub `
+  --resource-group $RG_NAME `
+  --service-name $APIM_NAME `
   --api-id "conferencehub-api" `
+  --api-revision "1"
+```
+Bash:
+```bash
+# The Developer Portal is enabled by default in APIM
+# Access it at: https://$APIM_NAME.developer.azure-api.net
+
+# Publish the portal
+az apim api revision create \
+  --resource-group $RG_NAME \
+  --service-name $APIM_NAME \
+  --api-id "conferencehub-api" \
   --api-revision "1"
 ```
 
@@ -836,13 +1149,27 @@ Update `.csproj` to generate XML documentation:
 
 ### View API Analytics
 
+PowerShell:
 ```powershell
 # Get API usage metrics
 az monitor metrics list `
-  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/rg-conferencehub/providers/Microsoft.ApiManagement/service/apim-conferencehub" `
+  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/Microsoft.ApiManagement/service/$APIM_NAME" `
   --metric "Requests" `
   --start-time 2024-01-01T00:00:00Z `
   --end-time 2024-12-31T23:59:59Z `
+  --interval PT1H
+
+# View in Azure Portal
+# Navigate to: APIM → Analytics → Reports
+```
+Bash:
+```bash
+# Get API usage metrics
+az monitor metrics list \
+  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$RG_NAME/providers/Microsoft.ApiManagement/service/$APIM_NAME" \
+  --metric "Requests" \
+  --start-time 2024-01-01T00:00:00Z \
+  --end-time 2024-12-31T23:59:59Z \
   --interval PT1H
 
 # View in Azure Portal

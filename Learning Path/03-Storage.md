@@ -17,21 +17,58 @@ In this learning path, you'll integrate Azure Storage into the ConferenceHub app
 
 ## Part 1: Create Azure Storage Resources
 
+Set variables used in the commands:
+PowerShell:
+```powershell
+$RG_NAME="$RG_NAME"
+$LOCATION="swedencentral"
+$STORAGE_NAME="stconferencehub$RANDOM" 
+$STORAGE_CONTAINER="speaker-slides"
+$STORAGE_TABLE="AuditLogs"
+$APP_NAME="conferencehub-$RANDOM"
+```
+Bash:
+```bash
+RG_NAME="$RG_NAME"
+LOCATION="swedencentral"
+STORAGE_NAME="stconferencehub$RANDOM"
+STORAGE_CONTAINER="speaker-slides"
+STORAGE_TABLE="AuditLogs"
+APP_NAME="conferencehub-$RANDOM"
+```
+
 ### Step 1: Create Storage Account
 
+PowerShell:
 ```powershell
 # Create a storage account for the application
 az storage account create `
-  --name stconferencehub `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $STORAGE_NAME `
+  --resource-group $RG_NAME `
+  --location $LOCATION `
   --sku Standard_LRS `
   --kind StorageV2
 
 # Get the connection string
 az storage account show-connection-string `
-  --name stconferencehub `
-  --resource-group rg-conferencehub `
+  --name $STORAGE_NAME `
+  --resource-group $RG_NAME `
+  --output tsv
+```
+Bash:
+```bash
+# Create a storage account for the application
+az storage account create \
+  --name $STORAGE_NAME \
+  --resource-group $RG_NAME \
+  --location $LOCATION \
+  --sku Standard_LRS \
+  --kind StorageV2
+
+# Get the connection string
+az storage account show-connection-string \
+  --name $STORAGE_NAME \
+  --resource-group $RG_NAME \
   --output tsv
 ```
 
@@ -39,29 +76,55 @@ Save the connection string - you'll need it later.
 
 ### Step 2: Create Blob Container
 
+PowerShell:
 ```powershell
 # Get storage account key
 $storageKey = az storage account keys list `
-  --account-name stconferencehub `
-  --resource-group rg-conferencehub `
+  --account-name $STORAGE_NAME `
+  --resource-group $RG_NAME `
   --query "[0].value" `
   --output tsv
 
 # Create container for speaker slides
 az storage container create `
-  --name speaker-slides `
-  --account-name stconferencehub `
+  --name $STORAGE_CONTAINER `
+  --account-name $STORAGE_NAME `
   --account-key $storageKey `
+  --public-access blob
+```
+Bash:
+```bash
+# Get storage account key
+storageKey=$(az storage account keys list \
+  --account-name $STORAGE_NAME \
+  --resource-group $RG_NAME \
+  --query "[0].value" \
+  --output tsv)
+
+# Create container for speaker slides
+az storage container create \
+  --name $STORAGE_CONTAINER \
+  --account-name $STORAGE_NAME \
+  --account-key $storageKey \
   --public-access blob
 ```
 
 ### Step 3: Create Table Storage
 
+PowerShell:
 ```powershell
 # Create table for audit logs
 az storage table create `
-  --name AuditLogs `
-  --account-name stconferencehub `
+  --name $STORAGE_TABLE `
+  --account-name $STORAGE_NAME `
+  --account-key $storageKey
+```
+Bash:
+```bash
+# Create table for audit logs
+az storage table create \
+  --name $STORAGE_TABLE \
+  --account-name $STORAGE_NAME \
   --account-key $storageKey
 ```
 
@@ -72,7 +135,14 @@ az storage table create `
 ### Step 1: Add NuGet Packages
 
 Add to `ConferenceHub/ConferenceHub.csproj`:
+PowerShell:
 ```powershell
+cd ConferenceHub
+dotnet add package Azure.Storage.Blobs
+dotnet add package Azure.Data.Tables
+```
+Bash:
+```bash
 cd ConferenceHub
 dotnet add package Azure.Storage.Blobs
 dotnet add package Azure.Data.Tables
@@ -929,29 +999,58 @@ Add this after the Location section:
 
 ### Step 1: Update Azure App Configuration
 
+PowerShell:
 ```powershell
 # Set storage connection string in Web App
 $connectionString = az storage account show-connection-string `
-  --name stconferencehub `
-  --resource-group rg-conferencehub `
+  --name $STORAGE_NAME `
+  --resource-group $RG_NAME `
   --output tsv
 
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
+  --settings AzureStorage__ConnectionString="$connectionString"
+```
+Bash:
+```bash
+# Set storage connection string in Web App
+connectionString=$(az storage account show-connection-string \
+  --name $STORAGE_NAME \
+  --resource-group $RG_NAME \
+  --output tsv)
+
+az webapp config appsettings set \
+  --name $APP_NAME \
+  --resource-group $RG_NAME \
   --settings AzureStorage__ConnectionString="$connectionString"
 ```
 
 ### Step 2: Deploy Updated Application
 
+PowerShell:
 ```powershell
 cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
-  --name conferencehub-demo-az204reinke `
-  --src ./app.zip
+az webapp deploy `
+  --resource-group $RG_NAME `
+  --name $APP_NAME `
+  --src-path ./app.zip `
+  --type zip
+```
+Bash:
+```bash
+cd ConferenceHub
+dotnet publish -c Release -o ./publish
+cd publish
+zip -r ../app.zip .
+cd ..
+az webapp deploy \
+  --resource-group $RG_NAME \
+  --name $APP_NAME \
+  --src-path ./app.zip \
+  --type zip
 ```
 
 ---
@@ -996,35 +1095,3 @@ You've successfully:
 - ✅ Created comprehensive audit trail for all actions
 - ✅ Updated UI to display slides and audit logs
 
-## Next Steps
-
-In **Learning Path 4**, you'll:
-- Replace JSON file storage with **Azure Cosmos DB**
-- Migrate session and registration data to Cosmos DB
-- Update all services to use Cosmos DB for data persistence
-- Implement advanced querying and filtering
-
----
-
-## Troubleshooting
-
-### Blob upload fails
-- Check storage connection string
-- Verify container exists and has proper permissions
-- Check file size limits
-
-### Table storage not logging
-- Verify table name is correct ("AuditLogs")
-- Check storage account connection
-- Review application logs for errors
-
-### Can't view uploaded slides
-- Ensure blob container has public read access
-- Verify blob URL is correctly saved to session
-- Check CORS settings if accessing from different domain
-
-## Azure DevOps Pipeline (Incremental Deployment)
-- Pipeline: `Learning Path/03-Storage/azure-pipelines.yml`
-- Bicep: `Learning Path/03-Storage/infra.bicep`
-- Required variables: `azureSubscription`, `resourceGroupName`, `location`, `storageAccountName`, `functionAppName`, `mainWebAppName`
-- Notes: The pipeline provisions Storage (blob container + table) and updates web app settings for `AzureStorage__ConnectionString` plus Functions settings.
