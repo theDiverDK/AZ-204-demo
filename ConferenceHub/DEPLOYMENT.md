@@ -123,7 +123,8 @@ cd ..
 az webapp deploy \
   --resource-group $RG_NAME \
   --name $APP_NAME \
-  --src-path ./app.zip
+  --src-path ./app.zip \
+  --type zip
 
 ```
 
