@@ -13,10 +13,10 @@ parameters:
 
 steps:
   - task: UseDotNet@2
-    displayName: 'Install .NET 10.0 SDK'
+    displayName: 'Install .NET 9.0 SDK'
     inputs:
       packageType: 'sdk'
-      version: '10.0.x'
+      version: '9.0.x'
 
   - task: DotNetCoreCLI@2
     displayName: 'Restore Nuget Packages'

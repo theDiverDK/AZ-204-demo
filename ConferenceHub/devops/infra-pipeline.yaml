@@ -19,7 +19,7 @@ variables:
   appName: 'app-conferencehub'
   
   appServicePlanSku: 'S1'
-  appRuntime: 'DOTNETCORE|10.0'
+  appRuntime: 'DOTNETCORE|9.0'
   appType: 'webApp'
   System.Debug: false
   environment: demo

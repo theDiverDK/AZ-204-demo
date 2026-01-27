@@ -19,7 +19,7 @@ Required parameters:
 Optional parameters:
 - `location` (defaults to resource group location)
 - `appServicePlanSku` (default `P0v3`)
-- `appRuntime` (default `DOTNETCORE|10.0`)
+- `appRuntime` (default `DOTNETCORE|9.0`)
 - `appCommandLine` (default `/home/site/wwwroot/ConferenceHub`)
 - `enableSystemIdentity`
 - `appSettings`
@@ -80,7 +80,7 @@ az webapp create \
   --name $APP_NAME \
   --resource-group $RG_NAME \
   --plan $PLAN_NAME \
-  --runtime "DOTNETCORE:10.0"
+  --runtime "DOTNETCORE:9.0"
 
 az webapp config appsettings set \
   --resource-group $RG_NAME \

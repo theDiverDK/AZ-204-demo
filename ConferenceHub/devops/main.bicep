@@ -4,7 +4,7 @@ param location string = resourceGroup().location
 param appServicePlanName string
 param webAppName string
 param appServicePlanSku string = 'P0v3'
-param appRuntime string = 'DOTNETCORE|10.0'
+param appRuntime string = 'DOTNETCORE|9.0'
 param appCommandLine string = '/home/site/wwwroot/ConferenceHub'
 param enableSystemIdentity bool = true
 param appSettings object = {}

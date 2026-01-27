@@ -3,7 +3,7 @@
 ## 🚀 Running Locally (5 minutes)
 
 ### Prerequisites
-- .NET 10.0 SDK installed
+- .NET 9.0 SDK installed
 - VS Code or Visual Studio (optional)
 
 ### Steps

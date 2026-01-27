@@ -24,7 +24,7 @@ In this learning path, you'll containerize the ConferenceHub application using D
 Create `ConferenceHub/Dockerfile`:
 ```dockerfile
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy csproj and restore dependencies
@@ -40,7 +40,7 @@ FROM build AS publish
 RUN dotnet publish "ConferenceHub.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
@@ -372,10 +372,10 @@ networks:
 
 Create `ConferenceHub.Functions/Dockerfile`:
 ```dockerfile
-FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0 AS base
+FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated9.0 AS base
 WORKDIR /home/site/wwwroot
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 COPY ["ConferenceHub.Functions.csproj", "./"]
 RUN dotnet restore "ConferenceHub.Functions.csproj"
