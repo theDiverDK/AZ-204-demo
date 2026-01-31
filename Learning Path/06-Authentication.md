@@ -14,6 +14,21 @@ In this learning path, you'll implement Microsoft Entra ID (formerly Azure AD) a
 - Azure subscription with permissions to create App Registrations
 - Microsoft Entra ID tenant (comes with every Azure subscription)
 
+## Variables
+Use base variables from `01-Init.md` (do not redefine):  
+`location`, `resourceGroupName`, `random`, `appServicePlanName`, `webAppName`, `appRuntime`, `publishDir`, `zipPath`
+
+Additional variables for this learning path:
+```bash
+azureAdTenantId="<your-tenant-id>"
+azureAdClientId="<your-client-id>"
+azureAdClientSecret="<your-client-secret>"
+functionAppName="func-conferencehub-$random"
+storageAccountName="stconferencehub$random"
+cosmosAccountName="cosmos-conferencehub-$random"
+cosmosDatabaseName="ConferenceHubDB"
+```
+
 ---
 
 ## Part 1: Register Application in Microsoft Entra ID
@@ -693,7 +708,7 @@ else
 ```powershell
 # Configure authentication for the App Service
 az webapp auth update `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --name conferencehub-demo-az204reinke `
   --enabled true `
   --action LoginWithAzureActiveDirectory `
@@ -708,7 +723,7 @@ az webapp auth update `
 # Add Azure AD configuration to App Service
 az webapp config appsettings set `
   --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --settings `
     AzureAd__Instance="https://login.microsoftonline.com/" `
     AzureAd__TenantId="$tenantId" `
@@ -905,7 +920,7 @@ cd ../ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --name conferencehub-demo-az204reinke `
   --src ./app.zip
 ```
@@ -914,7 +929,7 @@ az webapp deployment source config-zip `
 
 ```powershell
 cd ../ConferenceHubFunctions
-func azure functionapp publish func-conferencehub-az204reinke
+func azure functionapp publish $functionAppName
 ```
 
 ### Step 3: Test Authentication Flow

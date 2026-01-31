@@ -14,6 +14,17 @@ In this learning path, you'll migrate the ConferenceHub application from JSON fi
 - Azure Cosmos DB Account (or create new)
 - Microsoft.Azure.Cosmos NuGet package
 
+## Variables
+Use base variables from `01-Init.md` (do not redefine):  
+`location`, `resourceGroupName`, `random`, `appServicePlanName`, `webAppName`, `appRuntime`, `publishDir`, `zipPath`
+
+Additional variables for this learning path:
+```bash
+cosmosAccountName="cosmos-conferencehub-$random"
+cosmosDatabaseName="ConferenceHubDB"
+functionAppName="func-conferencehub-$random"
+```
+
 ---
 
 ## Part 1: Create Azure Cosmos DB Resources
@@ -23,17 +34,17 @@ In this learning path, you'll migrate the ConferenceHub application from JSON fi
 ```powershell
 # Create Cosmos DB account (SQL API)
 az cosmosdb create `
-  --name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $cosmosAccountName `
+  --resource-group $resourceGroupNameName `
   --kind GlobalDocumentDB `
-  --locations regionName=eastus failoverPriority=0 isZoneRedundant=False `
+  --locations regionName=$location failoverPriority=0 isZoneRedundant=False `
   --default-consistency-level Session `
   --enable-automatic-failover false
 
 # Get connection string
 az cosmosdb keys list `
-  --name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $cosmosAccountName `
+  --resource-group $resourceGroupNameName `
   --type connection-strings `
   --query "connectionStrings[0].connectionString" `
   --output tsv
@@ -44,24 +55,24 @@ az cosmosdb keys list `
 ```powershell
 # Create database
 az cosmosdb sql database create `
-  --account-name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
-  --name ConferenceHubDB
+  --account-name $cosmosAccountName `
+  --resource-group $resourceGroupNameName `
+  --name $cosmosDatabaseName
 
 # Create Sessions container (partition by /conferenceId or /track)
 az cosmosdb sql container create `
-  --account-name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
-  --database-name ConferenceHubDB `
+  --account-name $cosmosAccountName `
+  --resource-group $resourceGroupNameName `
+  --database-name $cosmosDatabaseName `
   --name Sessions `
   --partition-key-path "/conferenceId" `
   --throughput 400
 
 # Create Registrations container (partition by /sessionId)
 az cosmosdb sql container create `
-  --account-name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
-  --database-name ConferenceHubDB `
+  --account-name $cosmosAccountName `
+  --resource-group $resourceGroupNameName `
+  --database-name $cosmosDatabaseName `
   --name Registrations `
   --partition-key-path "/sessionId" `
   --throughput 400
@@ -564,7 +575,7 @@ namespace ConferenceHub.Services
   "AllowedHosts": "*",
   "CosmosDb": {
     "ConnectionString": "YOUR_COSMOS_CONNECTION_STRING",
-    "DatabaseName": "ConferenceHubDB"
+    "DatabaseName": "$cosmosDatabaseName"
   },
   "AzureStorage": {
     "ConnectionString": "YOUR_STORAGE_CONNECTION_STRING"
@@ -904,7 +915,7 @@ public class DataMigration
 Run the migration:
 ```powershell
 # Add to Program.cs temporarily or create a console app
-await DataMigration.MigrateSessionsAsync(cosmosConnectionString, "ConferenceHubDB");
+await DataMigration.MigrateSessionsAsync(cosmosConnectionString, "$cosmosDatabaseName");
 ```
 
 ---
@@ -939,7 +950,7 @@ namespace ConferenceHub.Functions
 
             try
             {
-                var container = _cosmosClient.GetContainer("ConferenceHubDB", "Sessions");
+                var container = _cosmosClient.GetContainer("$cosmosDatabaseName", "Sessions");
                 var cutoffTime = DateTime.UtcNow.AddHours(24);
 
                 _logger.LogInformation("Checking for sessions starting before: {CutoffTime}", cutoffTime);
@@ -1018,8 +1029,8 @@ host.Run();
 ```powershell
 # Get Cosmos DB connection string
 $cosmosConnectionString = az cosmosdb keys list `
-  --name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $cosmosAccountName `
+  --resource-group $resourceGroupNameName `
   --type connection-strings `
   --query "connectionStrings[0].connectionString" `
   --output tsv
@@ -1027,14 +1038,14 @@ $cosmosConnectionString = az cosmosdb keys list `
 # Update Web App settings
 az webapp config appsettings set `
   --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --settings CosmosDb__ConnectionString="$cosmosConnectionString" `
-             CosmosDb__DatabaseName="ConferenceHubDB"
+             CosmosDb__DatabaseName="$cosmosDatabaseName"
 
 # Update Function App settings
 az functionapp config appsettings set `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $functionAppName `
+  --resource-group $resourceGroupNameName `
   --settings CosmosDbConnectionString="$cosmosConnectionString"
 ```
 
@@ -1046,13 +1057,13 @@ cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --name conferencehub-demo-az204reinke `
   --src ./app.zip
 
 # Deploy Functions
 cd ../ConferenceHub.Functions
-func azure functionapp publish func-conferencehub-az204reinke
+func azure functionapp publish $functionAppName
 ```
 
 ---

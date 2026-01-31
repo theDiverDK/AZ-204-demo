@@ -15,6 +15,23 @@ In this learning path, you'll containerize the ConferenceHub application using D
 - Azure Container Registry or Docker Hub account
 - Azure CLI with container extensions
 
+## Variables
+Use base variables from `01-Init.md` (do not redefine):  
+`location`, `resourceGroupName`, `random`, `appServicePlanName`, `webAppName`, `appRuntime`, `publishDir`, `zipPath`
+
+Additional variables for this learning path:
+```bash
+acrName="acrconferencehub$random"
+containerAppsEnvName="env-conferencehub-$random"
+containerAppName="app-conferencehub-$random"
+containerImage="$acrName.azurecr.io/conferencehub:latest"
+cosmosAccountName="cosmos-conferencehub-$random"
+cosmosDatabaseName="ConferenceHubDB"
+storageAccountName="stconferencehub$random"
+functionAppName="func-conferencehub-$random"
+containerAppPlanName="plan-conferencehub-container-$random"
+```
+
 ---
 
 ## Part 1: Containerize the Web Application
@@ -113,35 +130,35 @@ docker rm conferencehub-test
 ```powershell
 # Create Azure Container Registry
 az acr create `
-  --name acrconferencehub `
-  --resource-group rg-conferencehub `
+  --name $acrName `
+  --resource-group $resourceGroupNameName `
   --sku Basic `
-  --location eastus `
+  --location $location `
   --admin-enabled true
 
 # Get ACR credentials
 az acr credential show `
-  --name acrconferencehub `
-  --resource-group rg-conferencehub
+  --name $acrName `
+  --resource-group $resourceGroupNameName
 ```
 
 ### Step 2: Push Image to ACR
 
 ```powershell
 # Login to ACR
-az acr login --name acrconferencehub
+az acr login --name $acrName
 
 # Tag the image
-docker tag conferencehub:latest acrconferencehub.azurecr.io/conferencehub:v1
-docker tag conferencehub:latest acrconferencehub.azurecr.io/conferencehub:latest
+docker tag conferencehub:latest $acrName.azurecr.io/conferencehub:v1
+docker tag conferencehub:latest $acrName.azurecr.io/conferencehub:latest
 
 # Push to ACR
-docker push acrconferencehub.azurecr.io/conferencehub:v1
-docker push acrconferencehub.azurecr.io/conferencehub:latest
+docker push $acrName.azurecr.io/conferencehub:v1
+docker push $acrName.azurecr.io/conferencehub:latest
 
 # Verify the image
-az acr repository list --name acrconferencehub --output table
-az acr repository show-tags --name acrconferencehub --repository conferencehub --output table
+az acr repository list --name $acrName --output table
+az acr repository show-tags --name $acrName --repository conferencehub --output table
 ```
 
 ---
@@ -156,9 +173,9 @@ az extension add --name containerapp --upgrade
 
 # Create Container Apps environment
 az containerapp env create `
-  --name env-conferencehub `
-  --resource-group rg-conferencehub `
-  --location eastus
+  --name $containerAppsEnvName `
+  --resource-group $resourceGroupNameName `
+  --location $location
 ```
 
 ### Step 2: Create Container App
@@ -166,35 +183,35 @@ az containerapp env create `
 ```powershell
 # Get connection strings for environment variables
 $cosmosConnectionString = az cosmosdb keys list `
-  --name cosmos-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $cosmosAccountName `
+  --resource-group $resourceGroupNameName `
   --type connection-strings `
   --query "connectionStrings[0].connectionString" `
   --output tsv
 
 $storageConnectionString = az storage account show-connection-string `
-  --name stconferencehub `
-  --resource-group rg-conferencehub `
+  --name $storageAccountName `
+  --resource-group $resourceGroupNameName `
   --output tsv
 
 # Get ACR credentials
 $acrUsername = az acr credential show `
-  --name acrconferencehub `
+  --name $acrName `
   --query "username" `
   --output tsv
 
 $acrPassword = az acr credential show `
-  --name acrconferencehub `
+  --name $acrName `
   --query "passwords[0].value" `
   --output tsv
 
 # Create Container App
 az containerapp create `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
-  --environment env-conferencehub `
-  --image acrconferencehub.azurecr.io/conferencehub:latest `
-  --registry-server acrconferencehub.azurecr.io `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
+  --environment $containerAppsEnvName `
+  --image $acrName.azurecr.io/conferencehub:latest `
+  --registry-server $acrName.azurecr.io `
   --registry-username $acrUsername `
   --registry-password $acrPassword `
   --target-port 8080 `
@@ -205,15 +222,15 @@ az containerapp create `
   --memory 1.0Gi `
   --env-vars `
     "CosmosDb__ConnectionString=$cosmosConnectionString" `
-    "CosmosDb__DatabaseName=ConferenceHubDB" `
+    "CosmosDb__DatabaseName=$cosmosDatabaseName" `
     "AzureStorage__ConnectionString=$storageConnectionString" `
-    "AzureFunctions__SendConfirmationUrl=https://func-conferencehub-az204reinke.azurewebsites.net/api/SendConfirmation" `
+    "AzureFunctions__SendConfirmationUrl=https://$functionAppName.azurewebsites.net/api/SendConfirmation" `
     "ASPNETCORE_ENVIRONMENT=Production"
 
 # Get the application URL
 az containerapp show `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
   --query "properties.configuration.ingress.fqdn" `
   --output tsv
 ```
@@ -227,8 +244,8 @@ az containerapp show `
 ```powershell
 # Create secrets in Container App
 az containerapp secret set `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
   --secrets `
     cosmosdb-connection="$cosmosConnectionString" `
     storage-connection="$storageConnectionString" `
@@ -236,8 +253,8 @@ az containerapp secret set `
 
 # Update environment variables to use secrets
 az containerapp update `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
   --set-env-vars `
     "CosmosDb__ConnectionString=secretref:cosmosdb-connection" `
     "AzureStorage__ConnectionString=secretref:storage-connection" `
@@ -249,8 +266,8 @@ az containerapp update `
 ```powershell
 # Add HTTP scaling rule
 az containerapp update `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
   --min-replicas 1 `
   --max-replicas 5 `
   --scale-rule-name http-rule `
@@ -263,8 +280,8 @@ az containerapp update `
 Update the Container App with health probes:
 ```powershell
 az containerapp update `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
   --health-probe-type liveness `
   --health-probe-path "/health" `
   --health-probe-interval 30 `
@@ -285,41 +302,41 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = Dat
 ```powershell
 # Create App Service Plan for Containers
 az appservice plan create `
-  --name plan-conferencehub-container `
-  --resource-group rg-conferencehub `
+  --name $containerAppPlanName `
+  --resource-group $resourceGroupNameName `
   --is-linux `
   --sku B1
 
 # Create Web App for Containers
 az webapp create `
   --name conferencehub-container `
-  --resource-group rg-conferencehub `
-  --plan plan-conferencehub-container `
-  --deployment-container-image-name acrconferencehub.azurecr.io/conferencehub:latest
+  --resource-group $resourceGroupNameName `
+  --plan $containerAppPlanName `
+  --deployment-container-image-name $acrName.azurecr.io/conferencehub:latest
 
 # Configure ACR credentials
 az webapp config container set `
   --name conferencehub-container `
-  --resource-group rg-conferencehub `
-  --docker-custom-image-name acrconferencehub.azurecr.io/conferencehub:latest `
-  --docker-registry-server-url https://acrconferencehub.azurecr.io `
+  --resource-group $resourceGroupNameName `
+  --docker-custom-image-name $acrName.azurecr.io/conferencehub:latest `
+  --docker-registry-server-url https://$acrName.azurecr.io `
   --docker-registry-server-user $acrUsername `
   --docker-registry-server-password $acrPassword
 
 # Configure app settings
 az webapp config appsettings set `
   --name conferencehub-container `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --settings `
     CosmosDb__ConnectionString="$cosmosConnectionString" `
-    CosmosDb__DatabaseName="ConferenceHubDB" `
+    CosmosDb__DatabaseName="$cosmosDatabaseName" `
     AzureStorage__ConnectionString="$storageConnectionString" `
     WEBSITES_PORT=8080
 
 # Enable continuous deployment
 az webapp deployment container config `
   --name conferencehub-container `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --enable-cd true
 ```
 
@@ -343,7 +360,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - CosmosDb__ConnectionString=${COSMOS_CONNECTION_STRING}
-      - CosmosDb__DatabaseName=ConferenceHubDB
+      - CosmosDb__DatabaseName=$cosmosDatabaseName
       - AzureStorage__ConnectionString=${STORAGE_CONNECTION_STRING}
       - AzureFunctions__SendConfirmationUrl=http://functions:7071/api/SendConfirmation
     depends_on:
@@ -429,10 +446,10 @@ on:
   workflow_dispatch:
 
 env:
-  ACR_NAME: acrconferencehub
+  ACR_NAME: $acrName
   IMAGE_NAME: conferencehub
-  CONTAINER_APP_NAME: app-conferencehub
-  RESOURCE_GROUP: rg-conferencehub
+  CONTAINER_APP_NAME: $webAppName
+  RESOURCE_GROUP: $resourceGroupNameName
 
 jobs:
   build-and-push:
@@ -486,14 +503,14 @@ jobs:
 ```powershell
 # Stream live logs
 az containerapp logs show `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
   --follow
 
 # View recent logs
 az containerapp logs show `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
   --tail 100
 ```
 
@@ -503,21 +520,21 @@ az containerapp logs show `
 # Create Application Insights
 az monitor app-insights component create `
   --app conferencehub-insights `
-  --location eastus `
-  --resource-group rg-conferencehub `
+  --location $location `
+  --resource-group $resourceGroupNameName `
   --application-type web
 
 # Get instrumentation key
 $instrumentationKey = az monitor app-insights component show `
   --app conferencehub-insights `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --query instrumentationKey `
   --output tsv
 
 # Update Container App with App Insights
 az containerapp update `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
   --set-env-vars "APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=$instrumentationKey"
 ```
 
@@ -543,20 +560,20 @@ docker run -it --rm `
 ```powershell
 # Get replica status
 az containerapp replica list `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
   --output table
 
 # View revision history
 az containerapp revision list `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $webAppName `
+  --resource-group $resourceGroupNameName `
   --output table
 
 # Restart the app
 az containerapp update `
-  --name app-conferencehub `
-  --resource-group rg-conferencehub
+  --name $webAppName `
+  --resource-group $resourceGroupNameName
 ```
 
 ---

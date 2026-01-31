@@ -30,7 +30,6 @@ All new/changed files for Learning Path 2 live under `Learning Path/02-Functions
 - `Learning Path/02-Functions/ConferenceHub/appsettings.json`
 - `Learning Path/02-Functions/ConferenceHub/appsettings.Development.json`
 
----
 
 ## Part 1: Create Azure Functions Project
 
@@ -53,34 +52,13 @@ cd ConferenceHub.Functions
 2. **Initialize the Functions project**:
 **PowerShell**
 ```powershell
-func init --worker-runtime dotnet-isolated --target-framework net9.0
+func init --worker-runtime dotnet-isolated --target-framework net8.0
 ```
 **Bash**
 ```bash
 func init --worker-runtime dotnet-isolated --target-framework net9.0
 ```
 
-3. **Copy the provided function files** (from `Learning Path/02-Functions/ConferenceHubFunctions` into your Functions project):
-**PowerShell**
-```powershell
-# From repo root
-Copy-Item -Path "../Learning Path/02-Functions/ConferenceHubFunctions/*" -Destination "<repo-root>/ConferenceHub.Functions" -Recurse -Force
-```
-**Bash**
-```bash
-# From repo root
-copy -R ../Learning\ Path/02-Functions/ConferenceHubFunctions/. ../ConferenceHub.Functions
-```
-
-4. **Open the project in VS Code**:
-**PowerShell**
-```powershell
-code .
-```
-**Bash**
-```bash
-code .
-```
 
 ### Step 2: Create HTTP-Triggered Function (Send Confirmation)
 
@@ -97,6 +75,10 @@ func new --name SendConfirmation --template "HTTP trigger" --authlevel "function
 2. **Create a Models folder and add the Registration DTO**:
 
 Create `Models/RegistrationRequest.cs` (also available at `Learning Path/02-Functions/ConferenceHubFunctions/Models/RegistrationRequest.cs`):
+
+mkdir Models
+cp ../Learning\ Path/02-Functions/ConferenceHubFunctions/Models/RegistrationRequest.cs Models/
+
 ```csharp
 namespace ConferenceHub.Functions.Models
 {
@@ -115,6 +97,9 @@ namespace ConferenceHub.Functions.Models
 3. **Update the SendConfirmation function**:
 
 Replace the contents of `SendConfirmation.cs` (also available at `Learning Path/02-Functions/ConferenceHubFunctions/SendConfirmation.cs`):
+
+cp ../Learning\ Path/02-Functions/ConferenceHubFunctions/SendConfirmation.cs .
+
 ```csharp
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -220,6 +205,9 @@ func new --name CloseRegistrations --template "Timer trigger"
 2. **Create Session model for the function**:
 
 Create `Models/Session.cs` (also available at `Learning Path/02-Functions/ConferenceHubFunctions/Models/Session.cs`):
+
+cp ../Learning\ Path/02-Functions/ConferenceHubFunctions/Models/Session.cs Models 
+
 ```csharp
 namespace ConferenceHub.Functions.Models
 {
@@ -236,6 +224,8 @@ namespace ConferenceHub.Functions.Models
 3. **Update the CloseRegistrations function**:
 
 Replace the contents of `CloseRegistrations.cs` (also available at `Learning Path/02-Functions/ConferenceHubFunctions/CloseRegistrations.cs`):
+
+cp ../Learning\ Path/02-Functions/ConferenceHubFunctions/CloseRegistrations.cs .
 ```csharp
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
@@ -315,6 +305,10 @@ func start
 ```
 **Bash**
 ```bash
+npm install -g azurite
+azurite --location ~/.azurite --silent
+
+
 dotnet add package Microsoft.Azure.Functions.Worker.Extensions.Timer
 
 func start
@@ -356,25 +350,20 @@ curl -s -X POST "http://localhost:7071/api/SendConfirmation" \
 
 ### Step 0: Set Azure Variables
 
-**PowerShell**
+Use the base variables from `01-Init.md` (do not redefine):  
+`location`, `resourceGroupName`, `random`, `appServicePlanName`, `webAppName`
+
+**PowerShell (additional variables)**
 ```powershell
-$RG_NAME = "rg-conferencehub"
-$LOCATION = "swedencentral"
-$RANDOM_SUFFIX = Get-Random
-$PLAN_NAME = "plan-conferencehub"
-$FUNCTION_STORAGE_ACCOUNT_NAME = "stconfhubfunc$RANDOM_SUFFIX"
-$FUNCTION_APP_NAME = "func-conferencehub-$RANDOM_SUFFIX"
-$WEB_APP_NAME = "conferencehub-demo-$RANDOM_SUFFIX"
+$functionPlanName = "plan-conferencehub-functions-$random"
+$functionStorageAccountName = "stconfhubfunc$random"
+$functionAppName = "func-conferencehub-$random"
 ```
-**Bash**
+**Bash (additional variables)**
 ```bash
-RG_NAME="rg-conferencehub"
-LOCATION="swedencentral"
-RANDOM="$RANDOM"
-PLAN_NAME="plan-conferencehub"
-FUNCTION_STORAGE_ACCOUNT_NAME="stconfhubfunc${RANDOM}"
-FUNCTION_APP_NAME="func-conferencehub-${RANDOM}"
-WEB_APP_NAME="conferencehub-demo-${RANDOM}"
+functionPlanName="plan-conferencehub-functions-$random"
+functionStorageAccountName="stconfhubfunc$random"
+functionAppName="func-conferencehub-$random"
 ```
 
 ### Step 1: Create Azure Resources
@@ -383,17 +372,17 @@ WEB_APP_NAME="conferencehub-demo-${RANDOM}"
 **PowerShell**
 ```powershell
 az storage account create `
-  --name $FUNCTION_STORAGE_ACCOUNT_NAME `
-  --resource-group $RG_NAME `
-  --location $LOCATION `
+  --name $functionStorageAccountName `
+  --resource-group $resourceGroupName `
+  --location $location `
   --sku Standard_LRS
 ```
 **Bash**
 ```bash
 az storage account create \
-  --name $FUNCTION_STORAGE_ACCOUNT_NAME \
-  --resource-group $RG_NAME \
-  --location $LOCATION \
+  --name $functionStorageAccountName \
+  --resource-group $resourceGroupName \
+  --location $location \
   --sku Standard_LRS
 ```
 
@@ -401,22 +390,31 @@ az storage account create \
 **PowerShell**
 ```powershell
 az functionapp create `
-  --name $FUNCTION_APP_NAME `
-  --resource-group $RG_NAME `
-  --storage-account $FUNCTION_STORAGE_ACCOUNT_NAME `
-  --plan $PLAN_NAME `
+  --name $functionAppName `
+  --resource-group $resourceGroupName `
+  --storage-account $functionStorageAccountName `
+  --plan $functionPlanName `
   --runtime dotnet-isolated `
-  --runtime-version 8 `
+  --runtime-version 9 `
   --functions-version 4 `
   --os-type Linux
 ```
 **Bash**
 ```bash
+
+az functionapp plan create \
+    --name "$functionPlanName" \
+    --resource-group "$resourceGroupName" \
+    --location "$location" \
+    --sku EP1 \
+    --is-linux
+
+
 az functionapp create \
-  --name $FUNCTION_APP_NAME \
-  --resource-group $RG_NAME \
-  --storage-account $FUNCTION_STORAGE_ACCOUNT_NAME \
-  --plan $PLAN_NAME \
+  --name $functionAppName \
+  --resource-group $resourceGroupName \
+  --storage-account $functionStorageAccountName \
+  --plan $functionPlanName \
   --runtime dotnet-isolated \
   --runtime-version 8 \
   --functions-version 4 \
@@ -432,7 +430,7 @@ func azure functionapp publish $FUNCTION_APP_NAME
 ```
 **Bash**
 ```bash
-func azure functionapp publish $FUNCTION_APP_NAME
+func azure functionapp publish $functionAppName
 ```
 
 2. **Get the function URL and key**:
@@ -441,7 +439,7 @@ func azure functionapp publish $FUNCTION_APP_NAME
 # Get the function key
 $FUNCTION_KEY = (az functionapp function keys list `
   --name $FUNCTION_APP_NAME `
-  --resource-group $RG_NAME `
+  --resource-group $resourceGroupName `
   --function-name SendConfirmation | ConvertFrom-Json).default
 
 # The function URL will be:
@@ -450,9 +448,9 @@ $FUNCTION_KEY = (az functionapp function keys list `
 **Bash**
 ```bash
 # Get the function key
-FUNCTION_KEY=$(az functionapp function keys list \
-  --name "$FUNCTION_APP_NAME" \
-  --resource-group "$RG_NAME" \
+functionKey=$(az functionapp function keys list \
+  --name "$functionAppName" \
+  --resource-group "$resourceGroupName" \
   --function-name SendConfirmation \
   --query "default" -o tsv)
 
@@ -475,7 +473,7 @@ Copy-Item -Path "Learning Path/02-Functions/ConferenceHub/*" -Destination ".\Con
 **Bash**
 ```bash
 # From repo root
-cp -R " Learning Path/02-Functions/ConferenceHub/." "./ConferenceHub/"
+cp -r Learning\ Path/02-Functions/ConferenceHub/. ConferenceHub
 ```
 
 ### Step 1: Add Configuration
@@ -713,17 +711,17 @@ Add the Function URL to the Web App's application settings:
 ```powershell
 az webapp config appsettings set `
   --name $APP_NAME `
-  --resource-group $RG_NAME `
+  --resource-group $resourceGroupName `
   --settings AzureFunctions__SendConfirmationUrl="https://$FUNCTION_APP_NAME.azurewebsites.net/api/SendConfirmation" `
              AzureFunctions__FunctionKey="$FUNCTION_KEY"
 ```
 **Bash**
 ```bash
 az webapp config appsettings set \
-  --name "$APP_NAME" \
-  --resource-group "$RG_NAME" \
-  --settings AzureFunctions__SendConfirmationUrl="https://$FUNCTION_APP_NAME.azurewebsites.net/api/SendConfirmation" \
-             AzureFunctions__FunctionKey="$FUNCTION_KEY"
+  --name "$webAppName" \
+  --resource-group "$resourceGroupName" \
+  --settings AzureFunctions__SendConfirmationUrl="https://$functionAppName.azurewebsites.net/api/SendConfirmation" \
+             AzureFunctions__FunctionKey="$functionKey"
 ```
 
 ---
@@ -776,22 +774,30 @@ cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group $RG_NAME `
+  --resource-group $resourceGroupName `
   --name $APP_NAME `
   --src ./app.zip
 ```
 **Bash**
 ```bash
 cd ConferenceHub
-dotnet publish -c Release -o ./publish
-cd publish
-zip -r ../app.zip .
-cd ..
-az webapp deployment source config-zip \
-  --resource-group "$RG_NAME" \
-  --name "$APP_NAME" \
-  --src ./app.zip
+  rm -rf ./publish
+  dotnet publish ConferenceHub.csproj \
+    -c Release \
+    -r linux-x64 \
+    --self-contained true \
+    -o ./publish
+
+  ( cd ./publish && zip -r ../app.zip . )
+
+  az webapp deploy \
+    --resource-group "$resourceGroupName" \
+    --name "$webAppName" \
+    --src-path ./app.zip \
+    --type zip
 ```
+
+Note: `az webapp deployment source config-zip` is deprecated. Use `az webapp deploy`.
 
 2. **Test the live application**:
    - Navigate to your Azure Web App URL

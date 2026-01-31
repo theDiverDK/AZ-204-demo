@@ -13,6 +13,15 @@ In this learning path, you'll integrate Azure Storage into the ConferenceHub app
 - Azure Storage Account (or create a new one)
 - Azure Storage SDK for .NET
 
+## Variables
+Use base variables from `01-Init.md` (do not redefine):  
+`location`, `resourceGroupName`, `random`, `appServicePlanName`, `webAppName`, `appRuntime`, `publishDir`, `zipPath`
+
+Additional variables for this learning path:
+```bash
+storageAccountName="stconferencehub$random"
+```
+
 ---
 
 ## Part 1: Create Azure Storage Resources
@@ -22,16 +31,16 @@ In this learning path, you'll integrate Azure Storage into the ConferenceHub app
 ```powershell
 # Create a storage account for the application
 az storage account create `
-  --name stconferencehub `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $storageAccountName `
+  --resource-group $resourceGroupNameName `
+  --location $location `
   --sku Standard_LRS `
   --kind StorageV2
 
 # Get the connection string
 az storage account show-connection-string `
-  --name stconferencehub `
-  --resource-group rg-conferencehub `
+  --name $storageAccountName `
+  --resource-group $resourceGroupNameName `
   --output tsv
 ```
 
@@ -42,15 +51,15 @@ Save the connection string - you'll need it later.
 ```powershell
 # Get storage account key
 $storageKey = az storage account keys list `
-  --account-name stconferencehub `
-  --resource-group rg-conferencehub `
+  --account-name $storageAccountName `
+  --resource-group $resourceGroupNameName `
   --query "[0].value" `
   --output tsv
 
 # Create container for speaker slides
 az storage container create `
   --name speaker-slides `
-  --account-name stconferencehub `
+  --account-name $storageAccountName `
   --account-key $storageKey `
   --public-access blob
 ```
@@ -61,7 +70,7 @@ az storage container create `
 # Create table for audit logs
 az storage table create `
   --name AuditLogs `
-  --account-name stconferencehub `
+  --account-name $storageAccountName `
   --account-key $storageKey
 ```
 
@@ -932,13 +941,13 @@ Add this after the Location section:
 ```powershell
 # Set storage connection string in Web App
 $connectionString = az storage account show-connection-string `
-  --name stconferencehub `
-  --resource-group rg-conferencehub `
+  --name $storageAccountName `
+  --resource-group $resourceGroupNameName `
   --output tsv
 
 az webapp config appsettings set `
   --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --settings AzureStorage__ConnectionString="$connectionString"
 ```
 
@@ -949,7 +958,7 @@ cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --name conferencehub-demo-az204reinke `
   --src ./app.zip
 ```

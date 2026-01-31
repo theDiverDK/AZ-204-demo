@@ -14,6 +14,20 @@ In this learning path, you'll implement reliable message-based communication usi
 - Azure subscription
 - Deployed Web App and Azure Functions
 
+## Variables
+Use base variables from `01-Init.md` (do not redefine):  
+`location`, `resourceGroupName`, `random`, `appServicePlanName`, `webAppName`, `appRuntime`, `publishDir`, `zipPath`
+
+Additional variables for this learning path:
+```bash
+serviceBusNamespaceName="sb-conferencehub-$random"
+serviceBusQueueName="registration-queue"
+serviceBusTopicName="notification-topic"
+storageAccountName="stconferencehub$random"
+functionAppName="func-conferencehub-$random"
+keyVaultName="kv-conferencehub-$random"
+```
+
 ---
 
 ## Part 1: Create Azure Service Bus
@@ -23,9 +37,9 @@ In this learning path, you'll implement reliable message-based communication usi
 ```powershell
 # Create Service Bus namespace
 az servicebus namespace create `
-  --name sb-conferencehub `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $serviceBusNamespaceName `
+  --resource-group $resourceGroupNameName `
+  --location $location `
   --sku Standard
 
 Write-Host "Service Bus namespace created"
@@ -36,8 +50,8 @@ Write-Host "Service Bus namespace created"
 ```powershell
 # Create queue for registration processing
 az servicebus queue create `
-  --namespace-name sb-conferencehub `
-  --resource-group rg-conferencehub `
+  --namespace-name $serviceBusNamespaceName `
+  --resource-group $resourceGroupNameName `
   --name registration-queue `
   --max-delivery-count 5 `
   --lock-duration PT5M `
@@ -52,30 +66,30 @@ Write-Host "Registration queue created"
 ```powershell
 # Create topic for notifications
 az servicebus topic create `
-  --namespace-name sb-conferencehub `
-  --resource-group rg-conferencehub `
+  --namespace-name $serviceBusNamespaceName `
+  --resource-group $resourceGroupNameName `
   --name notification-topic `
   --default-message-time-to-live P14D
 
 # Create subscription for email notifications
 az servicebus topic subscription create `
-  --namespace-name sb-conferencehub `
-  --resource-group rg-conferencehub `
+  --namespace-name $serviceBusNamespaceName `
+  --resource-group $resourceGroupNameName `
   --topic-name notification-topic `
   --name email-subscription
 
 # Create subscription for SMS notifications
 az servicebus topic subscription create `
-  --namespace-name sb-conferencehub `
-  --resource-group rg-conferencehub `
+  --namespace-name $serviceBusNamespaceName `
+  --resource-group $resourceGroupNameName `
   --topic-name notification-topic `
   --name sms-subscription `
   --max-delivery-count 3
 
 # Create subscription for mobile push notifications
 az servicebus topic subscription create `
-  --namespace-name sb-conferencehub `
-  --resource-group rg-conferencehub `
+  --namespace-name $serviceBusNamespaceName `
+  --resource-group $resourceGroupNameName `
   --topic-name notification-topic `
   --name mobile-subscription
 
@@ -87,8 +101,8 @@ Write-Host "Notification topic and subscriptions created"
 ```powershell
 # Get Service Bus connection string
 $serviceBusConnectionString = az servicebus namespace authorization-rule keys list `
-  --namespace-name sb-conferencehub `
-  --resource-group rg-conferencehub `
+  --namespace-name $serviceBusNamespaceName `
+  --resource-group $resourceGroupNameName `
   --name RootManageSharedAccessKey `
   --query primaryConnectionString `
   --output tsv
@@ -97,7 +111,7 @@ Write-Host "Service Bus Connection String: $serviceBusConnectionString"
 
 # Store in Key Vault
 az keyvault secret set `
-  --vault-name kv-conferencehub-az204 `
+  --vault-name $keyVaultName `
   --name "ServiceBus--ConnectionString" `
   --value $serviceBusConnectionString
 ```
@@ -111,21 +125,21 @@ az keyvault secret set `
 ```powershell
 # Get storage account key
 $storageKey = az storage account keys list `
-  --account-name stconferencehub `
-  --resource-group rg-conferencehub `
+  --account-name $storageAccountName `
+  --resource-group $resourceGroupNameName `
   --query "[0].value" `
   --output tsv
 
 # Create queue for background tasks
 az storage queue create `
   --name background-tasks `
-  --account-name stconferencehub `
+  --account-name $storageAccountName `
   --account-key $storageKey
 
 # Create queue for slide processing
 az storage queue create `
   --name slide-processing `
-  --account-name stconferencehub `
+  --account-name $storageAccountName `
   --account-key $storageKey
 
 Write-Host "Storage queues created"
@@ -829,16 +843,16 @@ dotnet add package Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues
 ```powershell
 # Add Service Bus connection string
 az functionapp config appsettings set `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
-  --settings ServiceBusConnectionString="@Microsoft.KeyVault(SecretUri=https://kv-conferencehub-az204.vault.azure.net/secrets/ServiceBus--ConnectionString/)"
+  --name $functionAppName `
+  --resource-group $resourceGroupNameName `
+  --settings ServiceBusConnectionString="@Microsoft.KeyVault(SecretUri=https://$keyVaultName.vault.azure.net/secrets/ServiceBus--ConnectionString/)"
 ```
 
 ### Step 2: Deploy Functions
 
 ```powershell
 cd ConferenceHubFunctions
-func azure functionapp publish func-conferencehub-az204reinke
+func azure functionapp publish $functionAppName
 ```
 
 ### Step 3: Deploy Web App
@@ -848,7 +862,7 @@ cd ../ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --name conferencehub-demo-az204reinke `
   --src ./app.zip
 ```
@@ -921,8 +935,8 @@ namespace ConferenceHubFunctions
 
 # Check queue metrics
 az servicebus queue show `
-  --namespace-name sb-conferencehub `
-  --resource-group rg-conferencehub `
+  --namespace-name $serviceBusNamespaceName `
+  --resource-group $resourceGroupNameName `
   --name registration-queue `
   --query "{ActiveMessages:countDetails.activeMessageCount, DeadLetter:countDetails.deadLetterMessageCount}"
 ```
@@ -932,8 +946,8 @@ az servicebus queue show `
 ```powershell
 # View subscription metrics
 az servicebus topic subscription show `
-  --namespace-name sb-conferencehub `
-  --resource-group rg-conferencehub `
+  --namespace-name $serviceBusNamespaceName `
+  --resource-group $resourceGroupNameName `
   --topic-name notification-topic `
   --name email-subscription `
   --query "countDetails"
@@ -945,7 +959,7 @@ az servicebus topic subscription show `
 # View queue messages
 az storage queue peek `
   --name slide-processing `
-  --account-name stconferencehub `
+  --account-name $storageAccountName `
   --num-messages 10
 ```
 

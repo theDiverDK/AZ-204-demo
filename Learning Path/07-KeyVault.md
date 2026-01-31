@@ -14,6 +14,23 @@ In this learning path, you'll secure sensitive application secrets using Azure K
 - Azure subscription with permissions to create Key Vault and App Configuration
 - Application with Entra ID authentication configured
 
+## Variables
+Use base variables from `01-Init.md` (do not redefine):  
+`location`, `resourceGroupName`, `random`, `appServicePlanName`, `webAppName`, `appRuntime`, `publishDir`, `zipPath`
+
+Additional variables for this learning path:
+```bash
+keyVaultName="kv-conferencehub-$random"
+appConfigName="appconfig-conferencehub-$random"
+azureAdTenantId="<your-tenant-id>"
+azureAdClientId="<your-client-id>"
+azureAdClientSecret="<your-client-secret>"
+functionAppName="func-conferencehub-$random"
+storageAccountName="stconferencehub$random"
+cosmosAccountName="cosmos-conferencehub-$random"
+cosmosDatabaseName="ConferenceHubDB"
+```
+
 ---
 
 ## Part 1: Create Azure Key Vault
@@ -23,15 +40,15 @@ In this learning path, you'll secure sensitive application secrets using Azure K
 ```powershell
 # Create Key Vault
 az keyvault create `
-  --name kv-conferencehub-az204 `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $keyVaultName `
+  --resource-group $resourceGroupNameName `
+  --location $location `
   --enable-rbac-authorization true
 
 # Get Key Vault URI
 $keyVaultUri = az keyvault show `
-  --name kv-conferencehub-az204 `
-  --resource-group rg-conferencehub `
+  --name $keyVaultName `
+  --resource-group $resourceGroupNameName `
   --query properties.vaultUri `
   --output tsv
 
@@ -44,12 +61,12 @@ Write-Host "Key Vault URI: $keyVaultUri"
 # Enable system-assigned managed identity for Web App
 az webapp identity assign `
   --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub
+  --resource-group $resourceGroupNameName
 
 # Get the managed identity principal ID
 $webAppPrincipalId = az webapp identity show `
   --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --query principalId `
   --output tsv
 
@@ -57,13 +74,13 @@ Write-Host "Web App Principal ID: $webAppPrincipalId"
 
 # Enable managed identity for Function App
 az functionapp identity assign `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub
+  --name $functionAppName `
+  --resource-group $resourceGroupNameName
 
 # Get function app principal ID
 $funcPrincipalId = az functionapp identity show `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $functionAppName `
+  --resource-group $resourceGroupNameName `
   --query principalId `
   --output tsv
 
@@ -75,8 +92,8 @@ Write-Host "Function App Principal ID: $funcPrincipalId"
 ```powershell
 # Get your Key Vault resource ID
 $keyVaultId = az keyvault show `
-  --name kv-conferencehub-az204 `
-  --resource-group rg-conferencehub `
+  --name $keyVaultName `
+  --resource-group $resourceGroupNameName `
   --query id `
   --output tsv
 
@@ -108,24 +125,24 @@ Start-Sleep -Seconds 30
 ```powershell
 # Add Storage connection string
 $storageConnectionString = az storage account show-connection-string `
-  --name stconferencehub `
-  --resource-group rg-conferencehub `
+  --name $storageAccountName `
+  --resource-group $resourceGroupNameName `
   --output tsv
 
 az keyvault secret set `
-  --vault-name kv-conferencehub-az204 `
+  --vault-name $keyVaultName `
   --name "AzureStorage--ConnectionString" `
   --value $storageConnectionString
 
 # Add Entra ID Client Secret
 az keyvault secret set `
-  --vault-name kv-conferencehub-az204 `
+  --vault-name $keyVaultName `
   --name "AzureAd--ClientSecret" `
   --value "YOUR_CLIENT_SECRET_FROM_LEARNING_PATH_6"
 
 # Add Cosmos DB connection string (if using Cosmos DB from Learning Path 4)
 az keyvault secret set `
-  --vault-name kv-conferencehub-az204 `
+  --vault-name $keyVaultName `
   --name "CosmosDb--ConnectionString" `
   --value "YOUR_COSMOS_CONNECTION_STRING"
 
@@ -250,7 +267,7 @@ Update `ConferenceHub/appsettings.json` to reference Key Vault:
   },
   "AllowedHosts": "*",
   "KeyVault": {
-    "VaultUri": "https://kv-conferencehub-az204.vault.azure.net/"
+    "VaultUri": "https://$keyVaultName.vault.azure.net/"
   },
   "AzureAd": {
     "Instance": "https://login.microsoftonline.com/",
@@ -260,7 +277,7 @@ Update `ConferenceHub/appsettings.json` to reference Key Vault:
     "SignedOutCallbackPath": "/signout-callback-oidc"
   },
   "AzureFunctions": {
-    "SendConfirmationUrl": "https://func-conferencehub-az204reinke.azurewebsites.net/api/SendConfirmation",
+    "SendConfirmationUrl": "https://$functionAppName.azurewebsites.net/api/SendConfirmation",
     "FunctionKey": ""
   }
 }
@@ -277,15 +294,15 @@ Note: Connection strings and client secret are now loaded from Key Vault automat
 ```powershell
 # Create App Configuration store
 az appconfig create `
-  --name appconfig-conferencehub `
-  --resource-group rg-conferencehub `
-  --location eastus `
+  --name $appConfigName `
+  --resource-group $resourceGroupNameName `
+  --location $location `
   --sku Standard
 
 # Get App Configuration endpoint
 $appConfigEndpoint = az appconfig show `
-  --name appconfig-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $appConfigName `
+  --resource-group $resourceGroupNameName `
   --query endpoint `
   --output tsv
 
@@ -297,8 +314,8 @@ Write-Host "App Configuration Endpoint: $appConfigEndpoint"
 ```powershell
 # Get App Configuration resource ID
 $appConfigId = az appconfig show `
-  --name appconfig-conferencehub `
-  --resource-group rg-conferencehub `
+  --name $appConfigName `
+  --resource-group $resourceGroupNameName `
   --query id `
   --output tsv
 
@@ -329,31 +346,31 @@ Start-Sleep -Seconds 30
 ```powershell
 # Add application settings
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --key "ConferenceHub:MaxSessionCapacity" `
   --value "100" `
   --yes
 
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --key "ConferenceHub:RegistrationOpenDays" `
   --value "30" `
   --yes
 
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --key "ConferenceHub:AllowWaitlist" `
   --value "true" `
   --yes
 
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --key "Email:FromAddress" `
   --value "noreply@conferencehub.com" `
   --yes
 
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --key "Email:FromName" `
   --value "ConferenceHub Notifications" `
   --yes
@@ -370,49 +387,49 @@ Write-Host "Configuration values added"
 ```powershell
 # Create feature flag for slide upload
 az appconfig feature set `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "SlideUpload" `
   --yes `
   --description "Enable speaker slide upload functionality"
 
 az appconfig feature enable `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "SlideUpload" `
   --yes
 
 # Create feature flag for waitlist
 az appconfig feature set `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "Waitlist" `
   --yes `
   --description "Enable waitlist when sessions are full"
 
 az appconfig feature enable `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "Waitlist" `
   --yes
 
 # Create feature flag for session ratings
 az appconfig feature set `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "SessionRatings" `
   --yes `
   --description "Enable attendees to rate sessions"
 
 az appconfig feature disable `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "SessionRatings" `
   --yes
 
 # Create feature flag for live Q&A
 az appconfig feature set `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "LiveQA" `
   --yes `
   --description "Enable live Q&A during sessions"
 
 az appconfig feature disable `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "LiveQA" `
   --yes
 
@@ -559,10 +576,10 @@ Add App Configuration endpoint:
   },
   "AllowedHosts": "*",
   "KeyVault": {
-    "VaultUri": "https://kv-conferencehub-az204.vault.azure.net/"
+    "VaultUri": "https://$keyVaultName.vault.azure.net/"
   },
   "AppConfiguration": {
-    "Endpoint": "https://appconfig-conferencehub.azconfig.io"
+    "Endpoint": "https://$appConfigName.azconfig.io"
   },
   "AzureAd": {
     "Instance": "https://login.microsoftonline.com/",
@@ -572,7 +589,7 @@ Add App Configuration endpoint:
     "SignedOutCallbackPath": "/signout-callback-oidc"
   },
   "AzureFunctions": {
-    "SendConfirmationUrl": "https://func-conferencehub-az204reinke.azurewebsites.net/api/SendConfirmation",
+    "SendConfirmationUrl": "https://$functionAppName.azurewebsites.net/api/SendConfirmation",
     "FunctionKey": ""
   }
 }
@@ -875,15 +892,15 @@ public OrganizerController(
 # Add Key Vault and App Configuration endpoints
 az webapp config appsettings set `
   --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --settings `
-    KeyVault__VaultUri="https://kv-conferencehub-az204.vault.azure.net/" `
-    AppConfiguration__Endpoint="https://appconfig-conferencehub.azconfig.io"
+    KeyVault__VaultUri="https://$keyVaultName.vault.azure.net/" `
+    AppConfiguration__Endpoint="https://$appConfigName.azconfig.io"
 
 # Remove sensitive settings (now in Key Vault)
 az webapp config appsettings delete `
   --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --setting-names AzureStorage__ConnectionString AzureAd__ClientSecret
 ```
 
@@ -894,7 +911,7 @@ cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group rg-conferencehub `
+  --resource-group $resourceGroupNameName `
   --name conferencehub-demo-az204reinke `
   --src ./app.zip
 ```
@@ -905,7 +922,7 @@ az webapp deployment source config-zip `
 # Check Web App logs
 az webapp log tail `
   --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub
+  --resource-group $resourceGroupNameName
 ```
 
 ---
@@ -917,20 +934,20 @@ az webapp log tail `
 ```powershell
 # Disable slide upload
 az appconfig feature disable `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "SlideUpload" `
   --yes
 
 # Wait for cache to expire (5 minutes) or restart app
 az webapp restart `
   --name conferencehub-demo-az204reinke `
-  --resource-group rg-conferencehub
+  --resource-group $resourceGroupNameName
 
 # Verify: Upload Slides button should disappear from Organizer Dashboard
 
 # Re-enable
 az appconfig feature enable `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "SlideUpload" `
   --yes
 ```
@@ -940,7 +957,7 @@ az appconfig feature enable `
 ```powershell
 # Disable waitlist
 az appconfig feature disable `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "Waitlist" `
   --yes
 
@@ -948,7 +965,7 @@ az appconfig feature disable `
 
 # Enable waitlist
 az appconfig feature enable `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --feature "Waitlist" `
   --yes
 
@@ -960,7 +977,7 @@ az appconfig feature enable `
 ```powershell
 # Update max capacity
 az appconfig kv set `
-  --name appconfig-conferencehub `
+  --name $appConfigName `
   --key "ConferenceHub:MaxSessionCapacity" `
   --value "150" `
   --yes
@@ -978,11 +995,11 @@ az appconfig kv set `
 ```powershell
 # Configure Key Vault reference for Functions
 az functionapp config appsettings set `
-  --name func-conferencehub-az204reinke `
-  --resource-group rg-conferencehub `
+  --name $functionAppName `
+  --resource-group $resourceGroupNameName `
   --settings `
-    KeyVault__VaultUri="https://kv-conferencehub-az204.vault.azure.net/" `
-    AppConfiguration__Endpoint="https://appconfig-conferencehub.azconfig.io"
+    KeyVault__VaultUri="https://$keyVaultName.vault.azure.net/" `
+    AppConfiguration__Endpoint="https://$appConfigName.azconfig.io"
 ```
 
 ### Step 2: Update Functions Project
