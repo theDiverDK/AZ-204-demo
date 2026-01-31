@@ -40,7 +40,21 @@ az storage account create `
 # Get the connection string
 az storage account show-connection-string `
   --name $storageAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
+  --output tsv
+```
+**Bash**
+```bash
+az storage account create \
+  --name "$storageAccountName" \
+  --resource-group "$resourceGroupName" \
+  --location "$location" \
+  --sku Standard_LRS \
+  --kind StorageV2
+
+az storage account show-connection-string \
+  --name "$storageAccountName" \
+  --resource-group "$resourceGroupName" \
   --output tsv
 ```
 
@@ -52,7 +66,7 @@ Save the connection string - you'll need it later.
 # Get storage account key
 $storageKey = az storage account keys list `
   --account-name $storageAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --query "[0].value" `
   --output tsv
 
@@ -61,6 +75,25 @@ az storage container create `
   --name speaker-slides `
   --account-name $storageAccountName `
   --account-key $storageKey `
+  --public-access blob
+```
+**Bash**
+```bash
+storageKey=$(az storage account keys list \
+  --account-name "$storageAccountName" \
+  --resource-group "$resourceGroupName" \
+  --query "[0].value" \
+  --output tsv)
+
+az storage account update \
+    --name "$storageAccountName" \
+    --resource-group "$resourceGroupName" \
+    --allow-blob-public-access true
+
+az storage container create \
+  --name speaker-slides \
+  --account-name "$storageAccountName" \
+  --account-key "$storageKey" \
   --public-access blob
 ```
 
@@ -73,6 +106,13 @@ az storage table create `
   --account-name $storageAccountName `
   --account-key $storageKey
 ```
+**Bash**
+```bash
+az storage table create \
+  --name AuditLogs \
+  --account-name "$storageAccountName" \
+  --account-key "$storageKey"
+```
 
 ---
 
@@ -82,6 +122,12 @@ az storage table create `
 
 Add to `ConferenceHub/ConferenceHub.csproj`:
 ```powershell
+cd ConferenceHub
+dotnet add package Azure.Storage.Blobs
+dotnet add package Azure.Data.Tables
+```
+**Bash**
+```bash
 cd ConferenceHub
 dotnet add package Azure.Storage.Blobs
 dotnet add package Azure.Data.Tables
@@ -113,6 +159,9 @@ namespace ConferenceHub.Models
 ### Step 3: Create Audit Log Model
 
 Create `Models/AuditLogEntity.cs`:
+
+cp ../Learning\ Path/03-Storage/ConferenceHub/Models/AuditLogEntity.cs Models 
+
 ```csharp
 using Azure;
 using Azure.Data.Tables;
@@ -266,6 +315,9 @@ namespace ConferenceHub.Services
 ### Step 2: Create Table Storage Service
 
 Create `Services/IAuditLogService.cs`:
+
+cp ../Learning\ Path/03-Storage/ConferenceHub/Services/* Services
+
 ```csharp
 using ConferenceHub.Models;
 
@@ -733,6 +785,9 @@ namespace ConferenceHub.Controllers
 ### Step 1: Create Upload Slides View
 
 Create `Views/Organizer/UploadSlides.cshtml`:
+
+cp ../../../Learning\ Path/03-Storage/ConferenceHub/Views/Organizer/* .
+
 ```cshtml
 @model ConferenceHub.Models.Session
 
@@ -899,7 +954,7 @@ Create `Views/Organizer/AuditLogs.cshtml`:
 ### Step 3: Update Organizer Index View
 
 Update `Views/Organizer/Index.cshtml` to add upload slides button:
-Add this to the Actions column in the table (inside the btn-group):
+Add this to the Actions column in the table (inside the btn-group, in the foreach):
 ```cshtml
 <a asp-action="UploadSlides" asp-route-id="@session.Id" class="btn btn-sm btn-outline-info">
     <i class="bi bi-upload"></i> Slides
@@ -942,12 +997,24 @@ Add this after the Location section:
 # Set storage connection string in Web App
 $connectionString = az storage account show-connection-string `
   --name $storageAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --output tsv
 
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
-  --resource-group $resourceGroupNameName `
+  --name $webAppName `
+  --resource-group $resourceGroupName `
+  --settings AzureStorage__ConnectionString="$connectionString"
+```
+**Bash**
+```bash
+connectionString=$(az storage account show-connection-string \
+  --name "$storageAccountName" \
+  --resource-group "$resourceGroupName" \
+  --output tsv)
+
+az webapp config appsettings set \
+  --name "$webAppName" \
+  --resource-group "$resourceGroupName" \
   --settings AzureStorage__ConnectionString="$connectionString"
 ```
 
@@ -958,9 +1025,28 @@ cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group $resourceGroupNameName `
-  --name conferencehub-demo-az204reinke `
+  --resource-group $resourceGroupName `
+  --name $webAppName `
   --src ./app.zip
+```
+**Bash**
+```bash
+cd ConferenceHub
+  rm -rf ./publish
+  dotnet publish ConferenceHub.csproj \
+    -c Release \
+    -r linux-x64 \
+    --self-contained true \
+    -o ./publish
+
+  ( cd ./publish && zip -r ../app.zip . )
+
+  az webapp deploy \
+    --resource-group "$resourceGroupName" \
+    --name "$webAppName" \
+    --src-path ./app.zip \
+    --type zip
+
 ```
 
 ---

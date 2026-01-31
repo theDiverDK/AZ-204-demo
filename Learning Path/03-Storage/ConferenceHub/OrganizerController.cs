@@ -23,15 +23,6 @@ namespace ConferenceHub.Controllers
             _logger = logger;
         }
 
-        // GET: Organizer
-        public async Task<IActionResult> Index()
-        {
-            var sessions = await _dataService.GetSessionsAsync();
-            var registrations = await _dataService.GetRegistrationsAsync();
-            ViewBag.TotalRegistrations = registrations.Count;
-            return View(sessions);
-        }
-
         // GET: Organizer/Create
         public IActionResult Create()
         {
