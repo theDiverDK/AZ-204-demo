@@ -13,7 +13,7 @@ location="swedencentral"
 resourceGroupName="$resourceGroupName"
 
 # Random suffix for globally unique names
-random="$RANDOM"
+random=14537 #"$RANDOM"
 
 # App Service
 appServicePlanName="plan-conferencehub-$random"

@@ -44,9 +44,26 @@ az cosmosdb create `
 # Get connection string
 az cosmosdb keys list `
   --name $cosmosAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --type connection-strings `
   --query "connectionStrings[0].connectionString" `
+  --output tsv
+```
+**Bash**
+```bash
+az cosmosdb create \
+  --name "$cosmosAccountName" \
+  --resource-group "$resourceGroupName" \
+  --kind GlobalDocumentDB \
+  --locations regionName="$location" failoverPriority=0 isZoneRedundant=False \
+  --default-consistency-level Session \
+  --enable-automatic-failover false
+
+az cosmosdb keys list \
+  --name "$cosmosAccountName" \
+  --resource-group "$resourceGroupName" \
+  --type connection-strings \
+  --query "connectionStrings[0].connectionString" \
   --output tsv
 ```
 
@@ -56,13 +73,13 @@ az cosmosdb keys list `
 # Create database
 az cosmosdb sql database create `
   --account-name $cosmosAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name $cosmosDatabaseName
 
 # Create Sessions container (partition by /conferenceId or /track)
 az cosmosdb sql container create `
   --account-name $cosmosAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --database-name $cosmosDatabaseName `
   --name Sessions `
   --partition-key-path "/conferenceId" `
@@ -71,10 +88,33 @@ az cosmosdb sql container create `
 # Create Registrations container (partition by /sessionId)
 az cosmosdb sql container create `
   --account-name $cosmosAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --database-name $cosmosDatabaseName `
   --name Registrations `
   --partition-key-path "/sessionId" `
+  --throughput 400
+```
+**Bash**
+```bash
+az cosmosdb sql database create \
+  --account-name "$cosmosAccountName" \
+  --resource-group "$resourceGroupName" \
+  --name "$cosmosDatabaseName"
+
+az cosmosdb sql container create \
+  --account-name "$cosmosAccountName" \
+  --resource-group "$resourceGroupName" \
+  --database-name "$cosmosDatabaseName" \
+  --name Sessions \
+  --partition-key-path "/conferenceId" \
+  --throughput 400
+
+az cosmosdb sql container create \
+  --account-name "$cosmosAccountName" \
+  --resource-group "$resourceGroupName" \
+  --database-name "$cosmosDatabaseName" \
+  --name Registrations \
+  --partition-key-path "/sessionId" \
   --throughput 400
 ```
 
@@ -87,9 +127,22 @@ az cosmosdb sql container create `
 ```powershell
 cd ConferenceHub
 dotnet add package Microsoft.Azure.Cosmos
+dotnet add package Newtonsoft.Json 
+```
+**Bash**
+```bash
+cd ConferenceHub
+dotnet add package Microsoft.Azure.Cosmos
+dotnet add package Newtonsoft.Json 
+
+cd ../ConferenceHub.Functions
+dotnet add package Microsoft.Azure.Cosmos
+dotnet add package Newtonsoft.Json 
 ```
 
 ### Step 2: Update Session Model
+
+cp ../../Learning\ Path/04-CosmosDB/ConferenceHub/Models/* .
 
 Update `Models/Session.cs`:
 ```csharp
@@ -196,7 +249,7 @@ namespace ConferenceHub.Models
 ---
 
 ## Part 3: Create Cosmos DB Service
-
+cp ../../Learning\ Path/04-CosmosDB/ConferenceHub/Services/* .
 ### Step 1: Create Interface
 
 Create `Services/ICosmosDbService.cs`:
@@ -575,7 +628,7 @@ namespace ConferenceHub.Services
   "AllowedHosts": "*",
   "CosmosDb": {
     "ConnectionString": "YOUR_COSMOS_CONNECTION_STRING",
-    "DatabaseName": "$cosmosDatabaseName"
+    "DatabaseName": "ConferenceHubDB"
   },
   "AzureStorage": {
     "ConnectionString": "YOUR_STORAGE_CONNECTION_STRING"
@@ -918,11 +971,15 @@ Run the migration:
 await DataMigration.MigrateSessionsAsync(cosmosConnectionString, "$cosmosDatabaseName");
 ```
 
+dotnet run
+
 ---
 
 ## Part 7: Update Azure Functions
 
 ### Update CloseRegistrations Function
+
+cp ../Learning\ Path/04-CosmosDB/ConferenceHubFunctions/CloseRegistrations.cs .
 
 Update `ConferenceHub.Functions/CloseRegistrations.cs`:
 ```csharp
@@ -998,6 +1055,9 @@ namespace ConferenceHub.Functions
 ```
 
 Update `ConferenceHub.Functions/Program.cs` to add Cosmos DB:
+
+cp ../Learning\ Path/04-CosmosDB/ConferenceHubFunctions/Program.cs .
+
 ```csharp
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
@@ -1030,52 +1090,81 @@ host.Run();
 # Get Cosmos DB connection string
 $cosmosConnectionString = az cosmosdb keys list `
   --name $cosmosAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --type connection-strings `
   --query "connectionStrings[0].connectionString" `
   --output tsv
 
 # Update Web App settings
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
-  --resource-group $resourceGroupNameName `
+  --name $webAppName `
+  --resource-group $resourceGroupName `
   --settings CosmosDb__ConnectionString="$cosmosConnectionString" `
              CosmosDb__DatabaseName="$cosmosDatabaseName"
 
 # Update Function App settings
 az functionapp config appsettings set `
   --name $functionAppName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
+  --settings CosmosDbConnectionString="$cosmosConnectionString"
+```
+**Bash**
+```bash
+cosmosConnectionString=$(az cosmosdb keys list \
+  --name "$cosmosAccountName" \
+  --resource-group "$resourceGroupName" \
+  --type connection-strings \
+  --query "connectionStrings[0].connectionString" \
+  --output tsv)
+
+az webapp config appsettings set \
+  --name "$webAppName" \
+  --resource-group "$resourceGroupName" \
+  --settings CosmosDb__ConnectionString="$cosmosConnectionString" \
+             CosmosDb__DatabaseName="$cosmosDatabaseName"
+
+az functionapp config appsettings set \
+  --name "$functionAppName" \
+  --resource-group "$resourceGroupName" \
   --settings CosmosDbConnectionString="$cosmosConnectionString"
 ```
 
 ### Step 2: Deploy Updated Applications
 
 ```powershell
-# Deploy Web App
+# Deploy Web App (Linux, self-contained)
 cd ConferenceHub
-dotnet publish -c Release -o ./publish
+dotnet publish -c Release -r linux-x64 --self-contained true -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip `
-  --resource-group $resourceGroupNameName `
-  --name conferencehub-demo-az204reinke `
+az webapp deploy `
+  --resource-group $resourceGroupName `
+  --name $webAppName `
   --src ./app.zip
 
 # Deploy Functions
 cd ../ConferenceHub.Functions
 func azure functionapp publish $functionAppName
 ```
+**Bash**
+```bash
+# Deploy Web App (Linux, self-contained)
+cd ConferenceHub
+dotnet publish -c Release -r linux-x64 --self-contained true -o ./publish
+( cd publish && zip -r ../app.zip . )
+az webapp deploy \
+  --resource-group "$resourceGroupName" \
+  --name "$webAppName" \
+  --src-path ./app.zip --type zip
+
+# Deploy Functions
+cd ../ConferenceHub.Functions
+func azure functionapp publish "$functionAppName"
+```
 
 ---
 
 ## Part 9: Test the Application
 
-### Test Session Queries
-
-1. Navigate to Sessions page
-2. Use filter dropdowns to filter by Track and Level
-3. Verify filtered results
-4. Test session details page
 
 ### Test Registrations
 

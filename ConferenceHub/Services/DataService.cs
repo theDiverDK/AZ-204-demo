@@ -6,10 +6,10 @@ namespace ConferenceHub.Services
     public interface IDataService
     {
         Task<List<Session>> GetSessionsAsync();
-        Task<Session?> GetSessionByIdAsync(int id);
+        Task<Session?> GetSessionByIdAsync(string id);
         Task AddSessionAsync(Session session);
         Task UpdateSessionAsync(Session session);
-        Task DeleteSessionAsync(int id);
+        Task DeleteSessionAsync(string id);
         Task<List<Registration>> GetRegistrationsAsync();
         Task AddRegistrationAsync(Registration registration);
     }
@@ -63,7 +63,7 @@ namespace ConferenceHub.Services
             }
         }
 
-        public async Task<Session?> GetSessionByIdAsync(int id)
+        public async Task<Session?> GetSessionByIdAsync(string id)
         {
             await _semaphore.WaitAsync();
             try
@@ -81,7 +81,12 @@ namespace ConferenceHub.Services
             await _semaphore.WaitAsync();
             try
             {
-                session.Id = _sessions.Any() ? _sessions.Max(s => s.Id) + 1 : 1;
+                var nextId = _sessions
+                    .Select(s => TryParseId(s.Id))
+                    .DefaultIfEmpty(0)
+                    .Max() + 1;
+                session.Id = nextId.ToString();
+                session.SessionNumber = nextId;
                 _sessions.Add(session);
             }
             finally
@@ -108,7 +113,7 @@ namespace ConferenceHub.Services
             }
         }
 
-        public async Task DeleteSessionAsync(int id)
+        public async Task DeleteSessionAsync(string id)
         {
             await _semaphore.WaitAsync();
             try
@@ -143,7 +148,7 @@ namespace ConferenceHub.Services
             await _semaphore.WaitAsync();
             try
             {
-                registration.Id = _registrations.Any() ? _registrations.Max(r => r.Id) + 1 : 1;
+                registration.Id = Guid.NewGuid().ToString();
                 registration.RegisteredAt = DateTime.Now;
                 _registrations.Add(registration);
 
@@ -158,6 +163,11 @@ namespace ConferenceHub.Services
             {
                 _semaphore.Release();
             }
+        }
+
+        private static int TryParseId(string id)
+        {
+            return int.TryParse(id, out var value) ? value : 0;
         }
     }
 }
