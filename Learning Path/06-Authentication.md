@@ -23,10 +23,6 @@ Additional variables for this learning path:
 azureAdTenantId="<your-tenant-id>"
 azureAdClientId="<your-client-id>"
 azureAdClientSecret="<your-client-secret>"
-functionAppName="func-conferencehub-$random"
-storageAccountName="stconferencehub$random"
-cosmosAccountName="cosmos-conferencehub-$random"
-cosmosDatabaseName="ConferenceHubDB"
 ```
 
 ---
@@ -52,6 +48,24 @@ $tenantId = az account show --query tenantId -o tsv
 Write-Host "Tenant ID: $tenantId"
 ```
 
+**Bash**
+```bash
+# Create the app registration
+az ad app create \
+  --display-name "ConferenceHub-WebApp" \
+  --sign-in-audience AzureADMyOrg \
+  --web-redirect-uris "https://conferencehub-demo-az204reinke.azurewebsites.net/signin-oidc" "https://localhost:7055/signin-oidc" \
+  --enable-id-token-issuance true
+
+# Get the Application (client) ID
+appId=$(az ad app list --display-name "ConferenceHub-WebApp" --query "[0].appId" -o tsv)
+echo "Application ID: $appId"
+
+# Get the Tenant ID
+tenantId=$(az account show --query tenantId -o tsv)
+echo "Tenant ID: $tenantId"
+```
+
 ### Step 2: Create Client Secret
 
 ```powershell
@@ -70,6 +84,26 @@ Write-Host "`nSave these values:"
 Write-Host "TenantId: $tenantId"
 Write-Host "ClientId: $appId"
 Write-Host "ClientSecret: $clientSecret"
+```
+
+**Bash**
+```bash
+# Create a client secret (valid for 1 year)
+secretResult=$(az ad app credential reset \
+  --id "$appId" \
+  --append \
+  --years 1)
+
+# Extract the secret value
+clientSecret=$(echo "$secretResult" | jq -r ".password")
+echo "Client Secret: $clientSecret"
+
+# IMPORTANT: Save these values - you'll need them in appsettings.json
+echo
+echo "Save these values:"
+echo "TenantId: $tenantId"
+echo "ClientId: $appId"
+echo "ClientSecret: $clientSecret"
 ```
 
 ### Step 3: Configure App Roles
@@ -99,6 +133,12 @@ Create `app-roles.json`:
 az ad app update --id $appId --app-roles @app-roles.json
 ```
 
+**Bash**
+```bash
+# Add app roles to the application
+az ad app update --id "$appId" --app-roles @app-roles.json
+```
+
 ### Step 4: Assign Users to Roles
 
 ```powershell
@@ -118,6 +158,24 @@ az rest --method POST `
   --body "{`"principalId`":`"$userObjectId`",`"resourceId`":`"$spObjectId`",`"appRoleId`":`"$organizerRoleId`"}"
 ```
 
+**Bash**
+```bash
+# Get the Enterprise App (Service Principal) object ID
+spObjectId=$(az ad sp list --display-name "ConferenceHub-WebApp" --query "[0].id" -o tsv)
+
+# Get your user object ID
+userObjectId=$(az ad signed-in-user show --query id -o tsv)
+
+# Get the Organizer role ID
+organizerRoleId=$(az ad app show --id "$appId" --query "appRoles[?value=='Organizer'].id" -o tsv)
+
+# Assign yourself the Organizer role
+az rest --method POST \
+  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$spObjectId/appRoleAssignments" \
+  --headers "Content-Type=application/json" \
+  --body "{\"principalId\":\"$userObjectId\",\"resourceId\":\"$spObjectId\",\"appRoleId\":\"$organizerRoleId\"}"
+```
+
 ---
 
 ## Part 2: Add Authentication to Web App
@@ -130,6 +188,12 @@ dotnet add package Microsoft.Identity.Web
 dotnet add package Microsoft.Identity.Web.UI
 ```
 
+**Bash**
+```bash
+cd ConferenceHub
+dotnet add package Microsoft.Identity.Web
+dotnet add package Microsoft.Identity.Web.UI
+```
 ### Step 2: Update appsettings.json
 
 Update `ConferenceHub/appsettings.json`:
@@ -717,6 +781,19 @@ az webapp auth update `
   --aad-token-issuer-url "https://login.microsoftonline.com/$tenantId/v2.0"
 ```
 
+**Bash**
+```bash
+# Configure authentication for the App Service
+az webapp auth update \
+  --resource-group "$resourceGroupNameName" \
+  --name "conferencehub-demo-az204reinke" \
+  --enabled true \
+  --action LoginWithAzureActiveDirectory \
+  --aad-client-id "$appId" \
+  --aad-client-secret "$clientSecret" \
+  --aad-token-issuer-url "https://login.microsoftonline.com/$tenantId/v2.0"
+```
+
 ### Step 2: Add App Settings
 
 ```powershell
@@ -731,6 +808,19 @@ az webapp config appsettings set `
     AzureAd__ClientSecret="$clientSecret"
 ```
 
+**Bash**
+```bash
+# Add Azure AD configuration to App Service
+az webapp config appsettings set \
+  --name "conferencehub-demo-az204reinke" \
+  --resource-group "$resourceGroupNameName" \
+  --settings \
+    AzureAd__Instance="https://login.microsoftonline.com/" \
+    AzureAd__TenantId="$tenantId" \
+    AzureAd__ClientId="$appId" \
+    AzureAd__ClientSecret="$clientSecret"
+```
+
 ---
 
 ## Part 6: Secure Azure Functions with JWT
@@ -739,6 +829,12 @@ az webapp config appsettings set `
 
 Add to `ConferenceHubFunctions/ConferenceHubFunctions.csproj`:
 ```powershell
+cd ../ConferenceHubFunctions
+dotnet add package Microsoft.Identity.Web
+```
+
+**Bash**
+```bash
 cd ../ConferenceHubFunctions
 dotnet add package Microsoft.Identity.Web
 ```
@@ -925,6 +1021,19 @@ az webapp deployment source config-zip `
   --src ./app.zip
 ```
 
+**Bash**
+```bash
+cd ../ConferenceHub
+dotnet publish -c Release -o ./publish
+cd publish
+zip -r ../app.zip .
+cd ..
+az webapp deployment source config-zip \
+  --resource-group "$resourceGroupNameName" \
+  --name "conferencehub-demo-az204reinke" \
+  --src ./app.zip
+```
+
 ### Step 2: Deploy Functions
 
 ```powershell
@@ -932,6 +1041,11 @@ cd ../ConferenceHubFunctions
 func azure functionapp publish $functionAppName
 ```
 
+**Bash**
+```bash
+cd ../ConferenceHubFunctions
+func azure functionapp publish "$functionAppName"
+```
 ### Step 3: Test Authentication Flow
 
 1. **Test Anonymous Access**:

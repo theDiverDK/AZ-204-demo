@@ -23,9 +23,6 @@ Additional variables for this learning path:
 serviceBusNamespaceName="sb-conferencehub-$random"
 serviceBusQueueName="registration-queue"
 serviceBusTopicName="notification-topic"
-storageAccountName="stconferencehub$random"
-functionAppName="func-conferencehub-$random"
-keyVaultName="kv-conferencehub-$random"
 ```
 
 ---
@@ -45,6 +42,18 @@ az servicebus namespace create `
 Write-Host "Service Bus namespace created"
 ```
 
+**Bash**
+```bash
+# Create Service Bus namespace
+az servicebus namespace create \
+  --name $serviceBusNamespaceName \
+  --resource-group $resourceGroupNameName \
+  --location $location \
+  --sku Standard
+
+echo Service Bus namespace created
+```
+
 ### Step 2: Create Queue for Registrations
 
 ```powershell
@@ -59,6 +68,21 @@ az servicebus queue create `
   --enable-dead-lettering-on-message-expiration true
 
 Write-Host "Registration queue created"
+```
+
+**Bash**
+```bash
+# Create queue for registration processing
+az servicebus queue create \
+  --namespace-name $serviceBusNamespaceName \
+  --resource-group $resourceGroupNameName \
+  --name registration-queue \
+  --max-delivery-count 5 \
+  --lock-duration PT5M \
+  --default-message-time-to-live P14D \
+  --enable-dead-lettering-on-message-expiration true
+
+echo Registration queue created
 ```
 
 ### Step 3: Create Topic for Notifications
@@ -96,6 +120,40 @@ az servicebus topic subscription create `
 Write-Host "Notification topic and subscriptions created"
 ```
 
+**Bash**
+```bash
+# Create topic for notifications
+az servicebus topic create \
+  --namespace-name $serviceBusNamespaceName \
+  --resource-group $resourceGroupNameName \
+  --name notification-topic \
+  --default-message-time-to-live P14D
+
+# Create subscription for email notifications
+az servicebus topic subscription create \
+  --namespace-name $serviceBusNamespaceName \
+  --resource-group $resourceGroupNameName \
+  --topic-name notification-topic \
+  --name email-subscription
+
+# Create subscription for SMS notifications
+az servicebus topic subscription create \
+  --namespace-name $serviceBusNamespaceName \
+  --resource-group $resourceGroupNameName \
+  --topic-name notification-topic \
+  --name sms-subscription \
+  --max-delivery-count 3
+
+# Create subscription for mobile push notifications
+az servicebus topic subscription create \
+  --namespace-name $serviceBusNamespaceName \
+  --resource-group $resourceGroupNameName \
+  --topic-name notification-topic \
+  --name mobile-subscription
+
+echo Notification topic and subscriptions created
+```
+
 ### Step 4: Get Connection String
 
 ```powershell
@@ -113,6 +171,25 @@ Write-Host "Service Bus Connection String: $serviceBusConnectionString"
 az keyvault secret set `
   --vault-name $keyVaultName `
   --name "ServiceBus--ConnectionString" `
+  --value $serviceBusConnectionString
+```
+
+**Bash**
+```bash
+# Get Service Bus connection string
+serviceBusConnectionString=$(az servicebus namespace authorization-rule keys list \
+  --namespace-name $serviceBusNamespaceName \
+  --resource-group $resourceGroupNameName \
+  --name RootManageSharedAccessKey \
+  --query primaryConnectionString \
+  --output tsv)
+
+echo Service Bus Connection String: $serviceBusConnectionString
+
+# Store in Key Vault
+az keyvault secret set \
+  --vault-name $keyVaultName \
+  --name "ServiceBus--ConnectionString" \
   --value $serviceBusConnectionString
 ```
 
@@ -145,6 +222,30 @@ az storage queue create `
 Write-Host "Storage queues created"
 ```
 
+**Bash**
+```bash
+# Get storage account key
+storageKey=$(az storage account keys list \
+  --account-name $storageAccountName \
+  --resource-group $resourceGroupNameName \
+  --query "[0].value" \
+  --output tsv)
+
+# Create queue for background tasks
+az storage queue create \
+  --name background-tasks \
+  --account-name $storageAccountName \
+  --account-key $storageKey
+
+# Create queue for slide processing
+az storage queue create \
+  --name slide-processing \
+  --account-name $storageAccountName \
+  --account-key $storageKey
+
+echo Storage queues created
+```
+
 ---
 
 ## Part 3: Implement Service Bus Producer
@@ -152,6 +253,12 @@ Write-Host "Storage queues created"
 ### Step 1: Add NuGet Packages
 
 ```powershell
+cd ConferenceHub
+dotnet add package Azure.Messaging.ServiceBus
+```
+
+**Bash**
+```bash
 cd ConferenceHub
 dotnet add package Azure.Messaging.ServiceBus
 ```
@@ -757,6 +864,12 @@ cd ConferenceHubFunctions
 dotnet add package Microsoft.Azure.Functions.Worker.Extensions.ServiceBus
 ```
 
+**Bash**
+```bash
+cd ConferenceHubFunctions
+dotnet add package Microsoft.Azure.Functions.Worker.Extensions.ServiceBus
+```
+
 ---
 
 ## Part 7: Create Storage Queue Consumer Function
@@ -834,6 +947,11 @@ Add NuGet package:
 dotnet add package Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues
 ```
 
+**Bash**
+```bash
+dotnet add package Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues
+```
+
 ---
 
 ## Part 8: Configure and Deploy
@@ -848,9 +966,24 @@ az functionapp config appsettings set `
   --settings ServiceBusConnectionString="@Microsoft.KeyVault(SecretUri=https://$keyVaultName.vault.azure.net/secrets/ServiceBus--ConnectionString/)"
 ```
 
+**Bash**
+```bash
+# Add Service Bus connection string
+az functionapp config appsettings set \
+  --name $functionAppName \
+  --resource-group $resourceGroupNameName \
+  --settings ServiceBusConnectionString="@Microsoft.KeyVault(SecretUri=https://$keyVaultName.vault.azure.net/secrets/ServiceBus--ConnectionString/)"
+```
+
 ### Step 2: Deploy Functions
 
 ```powershell
+cd ConferenceHubFunctions
+func azure functionapp publish $functionAppName
+```
+
+**Bash**
+```bash
 cd ConferenceHubFunctions
 func azure functionapp publish $functionAppName
 ```
@@ -867,6 +1000,17 @@ az webapp deployment source config-zip `
   --src ./app.zip
 ```
 
+**Bash**
+```bash
+cd ../ConferenceHub
+dotnet publish -c Release -o ./publish
+Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
+az webapp deployment source config-zip \
+  --resource-group $resourceGroupNameName \
+  --name conferencehub-demo-az204reinke \
+  --src ./app.zip
+```
+
 ---
 
 ## Part 9: Monitor and Handle Dead Letter Queues
@@ -874,6 +1018,15 @@ az webapp deployment source config-zip `
 ### View Dead Letter Queue Messages
 
 ```powershell
+# Install Service Bus Explorer or use Azure Portal
+# Navigate to Service Bus → Queues → registration-queue → Dead-letter queue
+
+# View dead letter messages using Azure CLI (requires additional setup)
+# Or use Service Bus Explorer desktop application
+```
+
+**Bash**
+```bash
 # Install Service Bus Explorer or use Azure Portal
 # Navigate to Service Bus → Queues → registration-queue → Dead-letter queue
 
@@ -941,6 +1094,19 @@ az servicebus queue show `
   --query "{ActiveMessages:countDetails.activeMessageCount, DeadLetter:countDetails.deadLetterMessageCount}"
 ```
 
+**Bash**
+```bash
+# Register for a session through the web app
+# Monitor Function App logs to see message processing
+
+# Check queue metrics
+az servicebus queue show \
+  --namespace-name $serviceBusNamespaceName \
+  --resource-group $resourceGroupNameName \
+  --name registration-queue \
+  --query "{ActiveMessages:countDetails.activeMessageCount, DeadLetter:countDetails.deadLetterMessageCount}"
+```
+
 ### Test Service Bus Topic
 
 ```powershell
@@ -953,6 +1119,17 @@ az servicebus topic subscription show `
   --query "countDetails"
 ```
 
+**Bash**
+```bash
+# View subscription metrics
+az servicebus topic subscription show \
+  --namespace-name $serviceBusNamespaceName \
+  --resource-group $resourceGroupNameName \
+  --topic-name notification-topic \
+  --name email-subscription \
+  --query "countDetails"
+```
+
 ### Test Storage Queue
 
 ```powershell
@@ -960,6 +1137,15 @@ az servicebus topic subscription show `
 az storage queue peek `
   --name slide-processing `
   --account-name $storageAccountName `
+  --num-messages 10
+```
+
+**Bash**
+```bash
+# View queue messages
+az storage queue peek \
+  --name slide-processing \
+  --account-name $storageAccountName \
   --num-messages 10
 ```
 
