@@ -125,7 +125,7 @@ az keyvault secret set \
 ```powershell
 # Enable Application Insights on Web App
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --resource-group $resourceGroupName `
   --settings `
     APPLICATIONINSIGHTS_CONNECTION_STRING="$connectionString" `
@@ -133,7 +133,7 @@ az webapp config appsettings set `
 
 # Enable always on (for continuous monitoring)
 az webapp config set `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --resource-group $resourceGroupName `
   --always-on true
 ```
@@ -142,7 +142,7 @@ az webapp config set `
 ```bash
 # Enable Application Insights on Web App
 az webapp config appsettings set \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --resource-group $resourceGroupName \
   --settings \
     APPLICATIONINSIGHTS_CONNECTION_STRING="$connectionString" \
@@ -150,7 +150,7 @@ az webapp config appsettings set \
 
 # Enable always on (for continuous monitoring)
 az webapp config set \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --resource-group $resourceGroupName \
   --always-on true
 ```
@@ -990,7 +990,7 @@ az monitor app-insights web-test create `
   --synthetic-monitor-id "homepage-test" `
   --tags "hidden-link:/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/microsoft.insights/components/$appInsightsName=Resource" `
   --location-web-test-ids "us-il-ch1-azr" "us-va-ash-azr" "emea-nl-ams-azr" `
-  --web-test-request-url "https://conferencehub-demo-az204reinke.azurewebsites.net"
+  --web-test-request-url "https://$webAppName.azurewebsites.net"
 ```
 
 **Bash**
@@ -1008,7 +1008,7 @@ az monitor app-insights web-test create \
   --synthetic-monitor-id "homepage-test" \
   --tags "hidden-link:/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/microsoft.insights/components/$appInsightsName=Resource" \
   --location-web-test-ids "us-il-ch1-azr" "us-va-ash-azr" "emea-nl-ams-azr" \
-  --web-test-request-url "https://conferencehub-demo-az204reinke.azurewebsites.net"
+  --web-test-request-url "https://$webAppName.azurewebsites.net"
 ```
 
 ### Step 2: Monitor Availability
@@ -1031,7 +1031,7 @@ dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
   --resource-group $resourceGroupName `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --src ./app.zip
 
 # Deploy Functions
@@ -1047,7 +1047,7 @@ dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip \
   --resource-group $resourceGroupName \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --src ./app.zip
 
 # Deploy Functions
@@ -1060,7 +1060,7 @@ func azure functionapp publish $functionAppName
 ```powershell
 # Generate traffic to create telemetry
 for ($i = 1; $i -le 100; $i++) {
-    Invoke-WebRequest -Uri "https://conferencehub-demo-az204reinke.azurewebsites.net" -UseBasicParsing
+    Invoke-WebRequest -Uri "https://$webAppName.azurewebsites.net" -UseBasicParsing
     Start-Sleep -Milliseconds 500
 }
 ```
@@ -1069,7 +1069,7 @@ for ($i = 1; $i -le 100; $i++) {
 ```bash
 # Generate traffic to create telemetry
 for ($i = 1; $i -le 100; $i++) {
-    Invoke-WebRequest -Uri "https://conferencehub-demo-az204reinke.azurewebsites.net" -UseBasicParsing
+    Invoke-WebRequest -Uri "https://$webAppName.azurewebsites.net" -UseBasicParsing
     Start-Sleep -Milliseconds 500
 }
 ```

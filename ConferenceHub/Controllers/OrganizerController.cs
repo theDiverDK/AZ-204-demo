@@ -2,42 +2,40 @@ using ConferenceHub.Models;
 using ConferenceHub.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.FeatureManagement;
+using Microsoft.FeatureManagement.Mvc;
 
 namespace ConferenceHub.Controllers
 {
     [Authorize(Policy = "OrganizerOnly")]
     public class OrganizerController : Controller
     {
-        private readonly ICosmosDbService _cosmosDbService;
+        private readonly IDataService _dataService;
         private readonly IBlobStorageService _blobStorageService;
         private readonly IAuditLogService _auditLogService;
+        private readonly IFeatureManager _featureManager;
         private readonly ILogger<OrganizerController> _logger;
 
         public OrganizerController(
-            ICosmosDbService cosmosDbService,
+            IDataService dataService,
             IBlobStorageService blobStorageService,
             IAuditLogService auditLogService,
+            IFeatureManager featureManager,
             ILogger<OrganizerController> logger)
         {
-            _cosmosDbService = cosmosDbService;
+            _dataService = dataService;
             _blobStorageService = blobStorageService;
             _auditLogService = auditLogService;
+            _featureManager = featureManager;
             _logger = logger;
         }
 
         // GET: Organizer
         public async Task<IActionResult> Index()
         {
-            var sessions = (await _cosmosDbService.GetSessionsAsync()).ToList();
-            var registrations = await _cosmosDbService.GetRegistrationsAsync();
-            ViewBag.TotalRegistrations = registrations.Count();
-
-            await Task.WhenAll(sessions.Select(async session =>
-            {
-                session.CurrentRegistrations =
-                    await _cosmosDbService.GetRegistrationCountBySessionAsync(session.Id);
-            }));
-
+            var sessions = await _dataService.GetSessionsAsync();
+            var registrations = await _dataService.GetRegistrationsAsync();
+            ViewBag.TotalRegistrations = registrations.Count;
             return View(sessions);
         }
 
@@ -55,7 +53,7 @@ namespace ConferenceHub.Controllers
             if (ModelState.IsValid)
             {
                 session.CurrentRegistrations = 0;
-                await _cosmosDbService.AddSessionAsync(session);
+                await _dataService.AddSessionAsync(session);
                 TempData["Success"] = "Session created successfully!";
                 return RedirectToAction(nameof(Index));
             }
@@ -65,7 +63,7 @@ namespace ConferenceHub.Controllers
         // GET: Organizer/Edit/5
         public async Task<IActionResult> Edit(string id)
         {
-            var session = await _cosmosDbService.GetSessionByIdAsync(id);
+            var session = await _dataService.GetSessionByIdAsync(id);
             if (session == null)
             {
                 return NotFound();
@@ -85,7 +83,7 @@ namespace ConferenceHub.Controllers
 
             if (ModelState.IsValid)
             {
-                await _cosmosDbService.UpdateSessionAsync(session);
+                await _dataService.UpdateSessionAsync(session);
                 TempData["Success"] = "Session updated successfully!";
                 return RedirectToAction(nameof(Index));
             }
@@ -95,7 +93,7 @@ namespace ConferenceHub.Controllers
         // GET: Organizer/Delete/5
         public async Task<IActionResult> Delete(string id)
         {
-            var session = await _cosmosDbService.GetSessionByIdAsync(id);
+            var session = await _dataService.GetSessionByIdAsync(id);
             if (session == null)
             {
                 return NotFound();
@@ -108,7 +106,7 @@ namespace ConferenceHub.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(string id)
         {
-            await _cosmosDbService.DeleteSessionAsync(id);
+            await _dataService.DeleteSessionAsync(id);
             TempData["Success"] = "Session deleted successfully!";
             return RedirectToAction(nameof(Index));
         }
@@ -116,8 +114,8 @@ namespace ConferenceHub.Controllers
         // GET: Organizer/Registrations
         public async Task<IActionResult> Registrations()
         {
-            var registrations = await _cosmosDbService.GetRegistrationsAsync();
-            var sessions = await _cosmosDbService.GetSessionsAsync();
+            var registrations = await _dataService.GetRegistrationsAsync();
+            var sessions = await _dataService.GetSessionsAsync();
             
             var registrationDetails = registrations.Select(r => new
             {
@@ -129,9 +127,10 @@ namespace ConferenceHub.Controllers
         }
 
         // GET: Organizer/UploadSlides/5
+        [FeatureGate("SlideUpload")]
         public async Task<IActionResult> UploadSlides(string id)
         {
-            var session = await _cosmosDbService.GetSessionByIdAsync(id);
+            var session = await _dataService.GetSessionByIdAsync(id);
             if (session == null)
             {
                 return NotFound();
@@ -142,54 +141,40 @@ namespace ConferenceHub.Controllers
         // POST: Organizer/UploadSlides/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [FeatureGate("SlideUpload")]
         public async Task<IActionResult> UploadSlides(string id, IFormFile slideFile)
         {
-            var session = await _cosmosDbService.GetSessionByIdAsync(id);
-            if (session == null)
-            {
-                return NotFound();
-            }
-
-            if (slideFile == null || slideFile.Length == 0)
-            {
-                TempData["Error"] = "Please select a file to upload.";
-                return View(session);
-            }
-
-            // Validate file type
-            var allowedExtensions = new[] { ".pdf", ".pptx", ".ppt" };
-            var extension = Path.GetExtension(slideFile.FileName).ToLowerInvariant();
-            if (!allowedExtensions.Contains(extension))
-            {
-                TempData["Error"] = "Only PDF and PowerPoint files are allowed.";
-                return View(session);
-            }
-
-            // Validate file size (max 50MB)
-            if (slideFile.Length > 50 * 1024 * 1024)
-            {
-                TempData["Error"] = "File size must be less than 50MB.";
-                return View(session);
-            }
-
             try
             {
+                var session = await _dataService.GetSessionByIdAsync(id);
+                if (session == null)
+                {
+                    return NotFound();
+                }
+
+                if (slideFile == null || slideFile.Length == 0)
+                {
+                    TempData["Error"] = "Please select a file to upload.";
+                    return RedirectToAction(nameof(UploadSlides), new { id });
+                }
+
                 // Upload to blob storage
-                using var stream = slideFile.OpenReadStream();
+                await using var fileStream = slideFile.OpenReadStream();
                 var blobUrl = await _blobStorageService.UploadSlideAsync(
-                    ToNumericId(session),
-                    slideFile.FileName, 
-                    stream, 
+                    ToNumericSessionId(session),
+                    slideFile.FileName,
+                    fileStream,
                     slideFile.ContentType);
 
                 // Update session with slide URL
                 session.SlideUrl = blobUrl;
                 session.SlideUploadedAt = DateTime.UtcNow;
-                await _cosmosDbService.UpdateSessionAsync(session);
+                await _dataService.UpdateSessionAsync(session);
 
-                // Log to audit table
-                await _auditLogService.LogSlideUploadAsync(ToNumericId(session), session.Title, session.Speaker);
+                // Log the upload
+                await _auditLogService.LogSlideUploadAsync(ToNumericSessionId(session), session.Title, session.Speaker);
 
+                _logger.LogInformation("Slides uploaded for session {SessionId}", id);
                 TempData["Success"] = "Slides uploaded successfully!";
                 return RedirectToAction(nameof(Index));
             }
@@ -197,20 +182,27 @@ namespace ConferenceHub.Controllers
             {
                 _logger.LogError(ex, "Error uploading slides for session {SessionId}", id);
                 TempData["Error"] = "Error uploading slides. Please try again.";
-                return View(session);
+                return RedirectToAction(nameof(UploadSlides), new { id });
             }
         }
 
-        // GET: Organizer/AuditLogs/5
-        public async Task<IActionResult> AuditLogs(int? sessionId)
+        // GET: Organizer/AuditLogs
+        public async Task<IActionResult> AuditLogs(string? sessionId)
         {
-            List<AuditLogEntity> logs;
-            
-            if (sessionId.HasValue)
+            List<ConferenceHub.Models.AuditLogEntity> logs;
+
+            if (!string.IsNullOrEmpty(sessionId))
             {
-                logs = await _auditLogService.GetSessionAuditLogsAsync(sessionId.Value);
-                var session = await _cosmosDbService.GetSessionByIdAsync(sessionId.Value.ToString());
-                ViewBag.SessionTitle = session?.Title;
+                var session = await _dataService.GetSessionByIdAsync(sessionId);
+                if (session != null)
+                {
+                    ViewBag.SessionTitle = session.Title;
+                    logs = await _auditLogService.GetSessionAuditLogsAsync(ToNumericSessionId(session));
+                }
+                else
+                {
+                    logs = new List<ConferenceHub.Models.AuditLogEntity>();
+                }
             }
             else
             {
@@ -220,7 +212,7 @@ namespace ConferenceHub.Controllers
             return View(logs);
         }
 
-        private static int ToNumericId(Session session)
+        private static int ToNumericSessionId(Session session)
         {
             if (session.SessionNumber > 0)
             {

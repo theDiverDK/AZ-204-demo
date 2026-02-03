@@ -996,7 +996,7 @@ dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
   --resource-group $resourceGroupName `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --src ./app.zip
 ```
 
@@ -1007,7 +1007,7 @@ dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip \
   --resource-group $resourceGroupName \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --src ./app.zip
 ```
 

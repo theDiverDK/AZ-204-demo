@@ -8,7 +8,7 @@
         <quota calls="1000" renewal-period="86400" />
         
         <!-- Set backend URL -->
-        <set-backend-service base-url="https://conferencehub-demo-az204reinke.azurewebsites.net" />
+        <set-backend-service base-url="https://$webAppName.azurewebsites.net" />
         
         <!-- Add subscription key to header -->
         <set-header name="X-Subscription-Key" exists-action="override">

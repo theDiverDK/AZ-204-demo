@@ -214,7 +214,7 @@ dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
   --resource-group $resourceGroupName `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --src ./app.zip
 ```
 
@@ -224,7 +224,7 @@ dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip \
   --resource-group $resourceGroupName \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --src ./app.zip
 ```
 
@@ -239,7 +239,7 @@ az apim api import `
   --api-id "conferencehub-api" `
   --display-name "ConferenceHub API" `
   --specification-format OpenApi `
-  --specification-url "https://conferencehub-demo-az204reinke.azurewebsites.net/swagger/v1/swagger.json" `
+  --specification-url "https://$webAppName.azurewebsites.net/swagger/v1/swagger.json" `
   --protocols https
 
 Write-Host "API imported successfully"
@@ -255,7 +255,7 @@ az apim api import \
   --api-id "conferencehub-api" \
   --display-name "ConferenceHub API" \
   --specification-format OpenApi \
-  --specification-url "https://conferencehub-demo-az204reinke.azurewebsites.net/swagger/v1/swagger.json" \
+  --specification-url "https://$webAppName.azurewebsites.net/swagger/v1/swagger.json" \
   --protocols https
 
 echo API imported successfully
@@ -533,7 +533,7 @@ Create `free-tier-policy.xml`:
         <quota calls="1000" renewal-period="86400" />
         
         <!-- Set backend URL -->
-        <set-backend-service base-url="https://conferencehub-demo-az204reinke.azurewebsites.net" />
+        <set-backend-service base-url="https://$webAppName.azurewebsites.net" />
         
         <!-- Add subscription key to header -->
         <set-header name="X-Subscription-Key" exists-action="override">
@@ -598,7 +598,7 @@ Create `premium-tier-policy.xml`:
         <!-- Quota: 10000 calls per day -->
         <quota calls="10000" renewal-period="86400" />
         
-        <set-backend-service base-url="https://conferencehub-demo-az204reinke.azurewebsites.net" />
+        <set-backend-service base-url="https://$webAppName.azurewebsites.net" />
         
         <set-header name="X-Subscription-Key" exists-action="override">
             <value>@(context.Subscription.Key)</value>

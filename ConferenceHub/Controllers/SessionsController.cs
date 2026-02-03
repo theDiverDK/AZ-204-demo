@@ -3,6 +3,7 @@ using ConferenceHub.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Microsoft.FeatureManagement;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -12,64 +13,44 @@ namespace ConferenceHub.Controllers
     [Authorize]
     public class SessionsController : Controller
     {
-        private readonly ICosmosDbService _cosmosDbService;
+        private readonly IDataService _dataService;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IAuditLogService _auditLogService;
+        private readonly IFeatureManager _featureManager;
         private readonly AzureFunctionsConfig _functionsConfig;
         private readonly ILogger<SessionsController> _logger;
 
         public SessionsController(
-            ICosmosDbService cosmosDbService,
+            IDataService dataService,
             IHttpClientFactory httpClientFactory,
             IAuditLogService auditLogService,
+            IFeatureManager featureManager,
             IOptions<AzureFunctionsConfig> functionsConfig,
             ILogger<SessionsController> logger)
         {
-            _cosmosDbService = cosmosDbService;
+            _dataService = dataService;
             _httpClientFactory = httpClientFactory;
             _auditLogService = auditLogService;
+            _featureManager = featureManager;
             _functionsConfig = functionsConfig.Value;
             _logger = logger;
         }
 
         // GET: Sessions
-        [AllowAnonymous]
-        public async Task<IActionResult> Index(string? track, string? level)
+        public async Task<IActionResult> Index()
         {
-            IEnumerable<Session> sessions;
-            
-            if (!string.IsNullOrEmpty(track) || !string.IsNullOrEmpty(level))
-            {
-                sessions = await _cosmosDbService.GetSessionsByFilterAsync(track, level);
-                ViewBag.SelectedTrack = track;
-                ViewBag.SelectedLevel = level;
-            }
-            else
-            {
-                sessions = await _cosmosDbService.GetSessionsAsync();
-            }
-
-            // Get unique tracks and levels for filter dropdowns
-            var allSessions = await _cosmosDbService.GetSessionsAsync();
-            ViewBag.Tracks = allSessions.Select(s => s.Track).Distinct().OrderBy(t => t).ToList();
-            ViewBag.Levels = allSessions.Select(s => s.Level).Distinct().OrderBy(l => l).ToList();
-
+            var sessions = await _dataService.GetSessionsAsync();
             return View(sessions);
         }
 
         // GET: Sessions/Details/5
-        [AllowAnonymous]
         public async Task<IActionResult> Details(string id)
         {
-            var session = await _cosmosDbService.GetSessionByIdAsync(id);
+            var session = await _dataService.GetSessionByIdAsync(id);
             if (session == null)
             {
                 return NotFound();
             }
-
-            // Get actual registration count from Cosmos DB
-            session.CurrentRegistrations = await _cosmosDbService.GetRegistrationCountBySessionAsync(id);
-
             return View(session);
         }
 
@@ -78,57 +59,51 @@ namespace ConferenceHub.Controllers
         [Authorize]
         public async Task<IActionResult> Register(string sessionId, string attendeeName, string attendeeEmail)
         {
-            var session = await _cosmosDbService.GetSessionByIdAsync(sessionId);
+            var userEmail = GetCurrentUserEmail() ?? attendeeEmail;
+            var userName = User.FindFirst(ClaimTypes.Name)?.Value ?? attendeeName;
+
+            var session = await _dataService.GetSessionByIdAsync(sessionId);
             if (session == null)
             {
                 return NotFound();
             }
 
-            // Check if registration is closed
-            if (session.RegistrationClosed)
+            // Check if session is full
+            if (session.CurrentRegistrations >= session.Capacity)
             {
-                TempData["Error"] = "Registration for this session is closed.";
-                return RedirectToAction(nameof(Details), new { id = sessionId });
-            }
-
-            // If the form did not provide an email/name, use authenticated user claims.
-            attendeeEmail = string.IsNullOrWhiteSpace(attendeeEmail) ? GetCurrentUserEmail() ?? string.Empty : attendeeEmail;
-            attendeeName = string.IsNullOrWhiteSpace(attendeeName) ? (User.Identity?.Name ?? "Authenticated User") : attendeeName;
-
-            // Get current registration count
-            var currentCount = await _cosmosDbService.GetRegistrationCountBySessionAsync(sessionId);
-            if (currentCount >= session.Capacity)
-            {
-                TempData["Error"] = "This session is at full capacity.";
+                // Check if waitlist is enabled
+                var waitlistEnabled = await _featureManager.IsEnabledAsync("Waitlist");
+                
+                if (waitlistEnabled)
+                {
+                    TempData["Info"] = "This session is full. You have been added to the waitlist.";
+                    // TODO: Implement waitlist logic
+                }
+                else
+                {
+                    TempData["Error"] = "This session is at full capacity.";
+                }
+                
                 return RedirectToAction(nameof(Details), new { id = sessionId });
             }
 
             var registration = new Registration
             {
                 SessionId = sessionId,
-                SessionTitle = session.Title,
-                AttendeeName = attendeeName,
-                AttendeeEmail = attendeeEmail
+                AttendeeName = userName,
+                AttendeeEmail = userEmail
             };
 
-            await _cosmosDbService.AddRegistrationAsync(registration);
-
-            // Log to audit table
-            await _auditLogService.LogRegistrationAsync(
-                int.Parse(session.SessionNumber.ToString()), 
-                session.Title, 
-                attendeeName, 
-                attendeeEmail);
-
-            // Call Azure Function to send confirmation email
-            await SendConfirmationEmailAsync(session, attendeeName, attendeeEmail);
+            await _dataService.AddRegistrationAsync(registration);
+            await _auditLogService.LogRegistrationAsync(ToNumericSessionId(session), session.Title, userName, userEmail);
+            await SendConfirmationEmailAsync(session, userName, userEmail);
 
             TempData["Success"] = "Successfully registered for the session!";
             
             return RedirectToAction(nameof(Details), new { id = sessionId });
         }
-        
-// GET: Sessions/MyRegistrations
+
+        // GET: Sessions/MyRegistrations
         [Authorize]
         public async Task<IActionResult> MyRegistrations()
         {
@@ -138,14 +113,73 @@ namespace ConferenceHub.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            var allRegistrations = await _cosmosDbService.GetRegistrationsAsync();
-            var myRegistrations = allRegistrations.Where(r => r.AttendeeEmail == userEmail).ToList();
+            var allRegistrations = await _dataService.GetRegistrationsAsync();
+            var userRegistrations = allRegistrations.Where(r => r.AttendeeEmail == userEmail).ToList();
+            
+            var sessions = await _dataService.GetSessionsAsync();
+            var userSessions = sessions.Where(s => userRegistrations.Any(r => r.SessionId == s.Id)).ToList();
 
-            var sessions = await _cosmosDbService.GetSessionsAsync();
-            var mySessionIds = myRegistrations.Select(r => r.SessionId).ToHashSet();
-            var mySessions = sessions.Where(s => mySessionIds.Contains(s.Id)).ToList();
+            return View(userSessions);
+        }
 
-            return View(mySessions);
+        private async Task SendConfirmationEmailAsync(Session session, string attendeeName, string attendeeEmail)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_functionsConfig.SendConfirmationUrl))
+                {
+                    _logger.LogWarning("SendConfirmationUrl not configured");
+                    return;
+                }
+
+                var request = new
+                {
+                    SessionTitle = session.Title,
+                    SessionDate = session.StartTime.ToString("MMMM dd, yyyy"),
+                    SessionTime = $"{session.StartTime:h:mm tt} - {session.EndTime:h:mm tt}",
+                    SessionRoom = session.Room,
+                    Speaker = session.Speaker,
+                    AttendeeName = attendeeName,
+                    AttendeeEmail = attendeeEmail
+                };
+
+                var httpClient = _httpClientFactory.CreateClient();
+                
+                if (!string.IsNullOrEmpty(_functionsConfig.FunctionKey))
+                {
+                    httpClient.DefaultRequestHeaders.Add("x-functions-key", _functionsConfig.FunctionKey);
+                }
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(request),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await httpClient.PostAsync(_functionsConfig.SendConfirmationUrl, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Confirmation email sent to {Email}", attendeeEmail);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to send confirmation email: {StatusCode}", response.StatusCode);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending confirmation email to {Email}", attendeeEmail);
+            }
+        }
+
+        private static int ToNumericSessionId(Session session)
+        {
+            if (session.SessionNumber > 0)
+            {
+                return session.SessionNumber;
+            }
+
+            return int.TryParse(session.Id, out var value) ? value : 0;
         }
 
         private string? GetCurrentUserEmail()
@@ -154,48 +188,6 @@ namespace ConferenceHub.Controllers
                 ?? User.FindFirstValue("preferred_username")
                 ?? User.FindFirstValue("upn")
                 ?? User.FindFirstValue("emails");
-        }
-
-        private async Task SendConfirmationEmailAsync(Session session, string attendeeName, string attendeeEmail)
-        {
-            try
-            {
-                var client = _httpClientFactory.CreateClient();
-                
-                var registrationRequest = new
-                {
-                    sessionId = session.Id,
-                    sessionTitle = session.Title,
-                    attendeeName = attendeeName,
-                    attendeeEmail = attendeeEmail,
-                    sessionStartTime = session.StartTime,
-                    room = session.Room
-                };
-
-                var json = System.Text.Json.JsonSerializer.Serialize(registrationRequest);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var url = _functionsConfig.SendConfirmationUrl;
-                if (!string.IsNullOrEmpty(_functionsConfig.FunctionKey))
-                {
-                    url += $"?code={_functionsConfig.FunctionKey}";
-                }
-
-                var response = await client.PostAsync(url, content);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Confirmation email sent successfully for {Email}", attendeeEmail);
-                }
-                else
-                {
-                    _logger.LogWarning("Failed to send confirmation email. Status: {Status}", response.StatusCode);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error calling SendConfirmation function");
-            }
         }
     }
 }

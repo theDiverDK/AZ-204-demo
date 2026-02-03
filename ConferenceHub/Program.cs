@@ -1,12 +1,57 @@
 using ConferenceHub.Services;
 using ConferenceHub.Models;
 using Microsoft.Azure.Cosmos;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
+using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
+using Microsoft.Extensions.Configuration.AzureAppConfiguration;
+using Microsoft.FeatureManagement;
 
 var builder = WebApplication.CreateBuilder(args);
+var appConfigEnabled = false;
+
+// Add App Configuration
+if (!builder.Environment.IsDevelopment() &&
+    !string.IsNullOrWhiteSpace(builder.Configuration["AppConfiguration:Endpoint"]))
+{
+    builder.Configuration.AddAzureAppConfiguration(options =>
+    {
+        options.Connect(new Uri(builder.Configuration["AppConfiguration:Endpoint"]!), new DefaultAzureCredential())
+            .Select("ConferenceHub:*")
+            .Select("Email:*")
+            .ConfigureRefresh(refresh =>
+            {
+                refresh.Register("ConferenceHub:MaxSessionCapacity", refreshAll: true)
+                    .SetCacheExpiration(TimeSpan.FromMinutes(5));
+            })
+            .UseFeatureFlags(featureFlagOptions =>
+            {
+                featureFlagOptions.CacheExpirationInterval = TimeSpan.FromMinutes(5);
+            });
+    });
+    appConfigEnabled = true;
+
+    // Add Key Vault configuration
+    if (!string.IsNullOrWhiteSpace(builder.Configuration["KeyVault:VaultUri"]))
+    {
+        var keyVaultUri = new Uri(builder.Configuration["KeyVault:VaultUri"]!);
+        builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
+    }
+}
+
+// Add Feature Management
+builder.Services.AddFeatureManagement();
+
+// Add App Configuration refresh middleware
+if (appConfigEnabled)
+{
+    builder.Services.AddAzureAppConfiguration();
+}
+
+// Add Microsoft Identity authentication
 builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
 
@@ -18,56 +63,80 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireAuthentication", policy =>
         policy.RequireAuthenticatedUser());
 });
-// Add services to the container.
+
+// Add services to the container with authorization
 builder.Services.AddControllersWithViews(options =>
 {
-    // Require authentication by default for all controllers
     var policy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
     options.Filters.Add(new AuthorizeFilter(policy));
 });
 
-// Configure Cosmos DB
-var cosmosConnectionString = builder.Configuration["CosmosDb:ConnectionString"];
-var cosmosDatabaseName = builder.Configuration["CosmosDb:DatabaseName"];
-
-builder.Services.AddSingleton(sp =>
-{
-    var cosmosClient = new CosmosClient(cosmosConnectionString);
-    return cosmosClient;
-});
-
-builder.Services.AddSingleton<ICosmosDbService>(sp =>
-{
-    var cosmosClient = sp.GetRequiredService<CosmosClient>();
-    var logger = sp.GetRequiredService<ILogger<CosmosDbService>>();
-    Console.WriteLine(cosmosClient);
-    return new CosmosDbService(cosmosClient, cosmosDatabaseName!, logger);
-});
-
-// Add Razor Pages for Microsoft Identity UI
 builder.Services.AddRazorPages()
     .AddMicrosoftIdentityUI();
 
+// Configure Cosmos DB (used by learning paths >= 4)
+var cosmosConnectionString =
+    Environment.GetEnvironmentVariable("CosmosDb__ConnectionString")
+    ?? builder.Configuration["CosmosDb:ConnectionString"];
+var cosmosDatabaseName =
+    Environment.GetEnvironmentVariable("CosmosDb__DatabaseName")
+    ?? builder.Configuration["CosmosDb:DatabaseName"];
 
-// Keep the old DataService for backward compatibility during migration
-// Remove this after full migration
-//builder.Services.AddSingleton<IDataService, DataService>();
+// Defensive cleanup in case values come quoted from App Configuration/Key Vault references.
+cosmosConnectionString = cosmosConnectionString?.Trim();
+if (!string.IsNullOrEmpty(cosmosConnectionString) &&
+    cosmosConnectionString.StartsWith("\"") &&
+    cosmosConnectionString.EndsWith("\""))
+{
+    cosmosConnectionString = cosmosConnectionString[1..^1];
+}
+
+if (!string.IsNullOrWhiteSpace(cosmosConnectionString) &&
+    !string.IsNullOrWhiteSpace(cosmosDatabaseName))
+{
+    try
+    {
+        var cosmosClient = new CosmosClient(cosmosConnectionString);
+        builder.Services.AddSingleton(cosmosClient);
+        builder.Services.AddSingleton<ICosmosDbService>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<CosmosDbService>>();
+            return new CosmosDbService(cosmosClient, cosmosDatabaseName, logger);
+        });
+        builder.Services.AddSingleton<IDataService, CosmosDataService>();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Cosmos disabled due to invalid configuration: {ex.Message}");
+        builder.Services.AddSingleton<IDataService, DataService>();
+    }
+}
+else
+{
+    // Fallback for early learning paths/local scenarios without Cosmos.
+    builder.Services.AddSingleton<IDataService, DataService>();
+}
 
 // Configure Azure Functions settings
 builder.Services.Configure<AzureFunctionsConfig>(
     builder.Configuration.GetSection("AzureFunctions"));
 
-// Add HttpClient for calling Azure Functions
 builder.Services.AddHttpClient();
 
 // Configure Azure Storage services
 var storageConnectionString = builder.Configuration["AzureStorage:ConnectionString"];
-builder.Services.AddSingleton<IBlobStorageService>(sp =>
+builder.Services.AddSingleton<IBlobStorageService>(sp => 
     new BlobStorageService(storageConnectionString!, sp.GetRequiredService<ILogger<BlobStorageService>>()));
-builder.Services.AddSingleton<IAuditLogService>(sp =>
+builder.Services.AddSingleton<IAuditLogService>(sp => 
     new AuditLogService(storageConnectionString!, sp.GetRequiredService<ILogger<AuditLogService>>()));
+
+// Configure settings from App Configuration
+builder.Services.Configure<ConferenceHubSettings>(
+    builder.Configuration.GetSection("ConferenceHub"));
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("Email"));
 
 var app = builder.Build();
 
@@ -76,6 +145,12 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
+}
+
+// Use App Configuration refresh middleware
+if (appConfigEnabled)
+{
+    app.UseAzureAppConfiguration();
 }
 
 app.UseHttpsRedirection();
@@ -89,8 +164,6 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-
-//await DataMigration.MigrateSessionsAsync(cosmosConnectionString, "ConferenceHubDB");
-
+app.MapRazorPages();
 
 app.Run();

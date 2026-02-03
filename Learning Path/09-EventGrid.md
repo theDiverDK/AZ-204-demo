@@ -1041,7 +1041,7 @@ az monitor metrics list \
 ```powershell
 # Add Event Hub connection string to Web App
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --resource-group $resourceGroupName `
   --settings EventHub__ConnectionString="@Microsoft.KeyVault(SecretUri=https://$keyVaultName.vault.azure.net/secrets/EventHub--ConnectionString/)"
 ```
@@ -1050,7 +1050,7 @@ az webapp config appsettings set `
 ```bash
 # Add Event Hub connection string to Web App
 az webapp config appsettings set \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --resource-group $resourceGroupName \
   --settings EventHub__ConnectionString="@Microsoft.KeyVault(SecretUri=https://$keyVaultName.vault.azure.net/secrets/EventHub--ConnectionString/)"
 ```
@@ -1063,7 +1063,7 @@ dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
   --resource-group $resourceGroupName `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --src ./app.zip
 ```
 
@@ -1074,7 +1074,7 @@ dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip \
   --resource-group $resourceGroupName \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --src ./app.zip
 ```
 

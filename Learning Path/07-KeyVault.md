@@ -72,12 +72,12 @@ echo "Key Vault URI: $keyVaultUri"
 ```powershell
 # Enable system-assigned managed identity for Web App
 az webapp identity assign `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --resource-group $resourceGroupName
 
 # Get the managed identity principal ID
 $webAppPrincipalId = az webapp identity show `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --resource-group $resourceGroupName `
   --query principalId `
   --output tsv
@@ -103,12 +103,12 @@ Write-Host "Function App Principal ID: $funcPrincipalId"
 ```bash
 # Enable system-assigned managed identity for Web App
 az webapp identity assign \
-  --name "conferencehub-demo-az204reinke" \
+  --name "$webAppName" \
   --resource-group "$resourceGroupName"
 
 # Get the managed identity principal ID
 webAppPrincipalId=$(az webapp identity show \
-  --name "conferencehub-demo-az204reinke" \
+  --name "$webAppName" \
   --resource-group "$resourceGroupName" \
   --query principalId \
   --output tsv)
@@ -1146,7 +1146,7 @@ public OrganizerController(
 ```powershell
 # Add Key Vault and App Configuration endpoints
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --resource-group $resourceGroupName `
   --settings `
     KeyVault__VaultUri="https://$keyVaultName.vault.azure.net/" `
@@ -1154,7 +1154,7 @@ az webapp config appsettings set `
 
 # Remove sensitive settings (now in Key Vault)
 az webapp config appsettings delete `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --resource-group $resourceGroupName `
   --setting-names AzureStorage__ConnectionString AzureAd__ClientSecret
 ```
@@ -1163,7 +1163,7 @@ az webapp config appsettings delete `
 ```bash
 # Add Key Vault and App Configuration endpoints
 az webapp config appsettings set \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --resource-group $resourceGroupName \
   --settings \
     KeyVault__VaultUri="https://$keyVaultName.vault.azure.net/" \
@@ -1171,7 +1171,7 @@ az webapp config appsettings set \
 
 # Remove sensitive settings (now in Key Vault)
 az webapp config appsettings delete \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --resource-group $resourceGroupName \
   --setting-names AzureStorage__ConnectionString AzureAd__ClientSecret
 ```
@@ -1184,19 +1184,21 @@ dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
   --resource-group $resourceGroupName `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --src ./app.zip
 ```
 
 **Bash**
 ```bash
-cd ConferenceHub
-dotnet publish -c Release -o ./publish
-Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip \
-  --resource-group $resourceGroupName \
-  --name conferencehub-demo-az204reinke \
-  --src ./app.zip
+cd ConferenceHub                                                                        
+  dotnet publish -c Release -o ./publish   
+  cd publish && zip -r ../app.zip . && cd ..
+
+  az webapp deploy \
+    --resource-group "$resourceGroupName" \
+    --name "$webAppName" \
+    --src-path ./app.zip \
+    --type zip
 ```
 
 ### Step 3: Verify Deployment
@@ -1204,7 +1206,7 @@ az webapp deployment source config-zip \
 ```powershell
 # Check Web App logs
 az webapp log tail `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --resource-group $resourceGroupName
 ```
 
@@ -1212,7 +1214,7 @@ az webapp log tail `
 ```bash
 # Check Web App logs
 az webapp log tail \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --resource-group $resourceGroupName
 ```
 
@@ -1231,7 +1233,7 @@ az appconfig feature disable `
 
 # Wait for cache to expire (5 minutes) or restart app
 az webapp restart `
-  --name conferencehub-demo-az204reinke `
+  --name $webAppName `
   --resource-group $resourceGroupName
 
 # Verify: Upload Slides button should disappear from Organizer Dashboard
@@ -1253,7 +1255,7 @@ az appconfig feature disable \
 
 # Wait for cache to expire (5 minutes) or restart app
 az webapp restart \
-  --name conferencehub-demo-az204reinke \
+  --name $webAppName \
   --resource-group $resourceGroupName
 
 # Verify: Upload Slides button should disappear from Organizer Dashboard
