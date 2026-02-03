@@ -41,7 +41,14 @@ if (!builder.Environment.IsDevelopment() &&
         builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
     }
 }
-
+var eventHubConnectionString = builder.Configuration["EventHub:ConnectionString"];
+var eventHubName = "session-feedback";
+builder.Services.AddSingleton<IEventHubService>(sp => 
+    new EventHubService(
+        eventHubConnectionString!, 
+        eventHubName, 
+        sp.GetRequiredService<ILogger<EventHubService>>()));
+        
 // Add Feature Management
 builder.Services.AddFeatureManagement();
 

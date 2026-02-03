@@ -54,6 +54,9 @@
                             <small class="text-muted">
                                 Registered: <i class="bi bi-check-circle-fill text-success"></i>
                             </small>
+                            <a asp-controller="Feedback" asp-action="Submit" asp-route-sessionId="@session.Id" class="btn btn-sm btn-outline-warning float-end ms-2">
+                                Give Feedback
+                            </a>
                             <a asp-action="Details" asp-route-id="@session.Id" class="btn btn-sm btn-outline-info float-end">
                                 View Details
                             </a>

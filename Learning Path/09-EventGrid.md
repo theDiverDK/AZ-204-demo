@@ -85,11 +85,9 @@ echo Event Grid system topic created
 
 Create new function `ConferenceHubFunctions/ProcessSlideUpload.cs`:
 ```csharp
-using System.Net;
 using System.Text.Json;
 using Azure.Messaging.EventGrid;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
 namespace ConferenceHubFunctions
@@ -104,58 +102,23 @@ namespace ConferenceHubFunctions
         }
 
         [Function("ProcessSlideUpload")]
-        public async Task<HttpResponseData> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
+        public async Task Run(
+            [EventGridTrigger] EventGridEvent eventGridEvent)
         {
-            _logger.LogInformation("Processing Event Grid notification");
+            _logger.LogInformation(
+                "Processing Event Grid event {EventType} (Id: {Id})",
+                eventGridEvent.EventType,
+                eventGridEvent.Id);
 
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            
-            // Parse Event Grid events
-            EventGridEvent[] events = JsonSerializer.Deserialize<EventGridEvent[]>(requestBody);
-
-            if (events == null || events.Length == 0)
+            // Handle blob created event
+            if (eventGridEvent.EventType == "Microsoft.Storage.BlobCreated")
             {
-                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                await badResponse.WriteStringAsync("No events received");
-                return badResponse;
+                var blobCreatedData = JsonSerializer.Deserialize<StorageBlobCreatedEventData>(
+                    eventGridEvent.Data.ToString());
+
+                _logger.LogInformation("Blob created: {BlobUrl}", blobCreatedData?.Url);
+                await ProcessSlideAsync(blobCreatedData);
             }
-
-            foreach (var eventGridEvent in events)
-            {
-                // Handle validation event (Event Grid subscription validation)
-                if (eventGridEvent.EventType == "Microsoft.EventGrid.SubscriptionValidationEvent")
-                {
-                    var validationData = JsonSerializer.Deserialize<SubscriptionValidationEventData>(
-                        eventGridEvent.Data.ToString());
-                    
-                    var validationResponse = new
-                    {
-                        validationResponse = validationData?.ValidationCode
-                    };
-
-                    var response = req.CreateResponse(HttpStatusCode.OK);
-                    response.Headers.Add("Content-Type", "application/json");
-                    await response.WriteStringAsync(JsonSerializer.Serialize(validationResponse));
-                    return response;
-                }
-
-                // Handle blob created event
-                if (eventGridEvent.EventType == "Microsoft.Storage.BlobCreated")
-                {
-                    var blobCreatedData = JsonSerializer.Deserialize<StorageBlobCreatedEventData>(
-                        eventGridEvent.Data.ToString());
-
-                    _logger.LogInformation("Blob created: {BlobUrl}", blobCreatedData?.Url);
-
-                    // Process the slide upload
-                    await ProcessSlideAsync(blobCreatedData);
-                }
-            }
-
-            var successResponse = req.CreateResponse(HttpStatusCode.OK);
-            await successResponse.WriteStringAsync("Events processed successfully");
-            return successResponse;
         }
 
         private async Task ProcessSlideAsync(StorageBlobCreatedEventData? blobData)
@@ -184,12 +147,6 @@ namespace ConferenceHubFunctions
             }
         }
 
-        private class SubscriptionValidationEventData
-        {
-            public string? ValidationCode { get; set; }
-            public string? ValidationUrl { get; set; }
-        }
-
         private class StorageBlobCreatedEventData
         {
             public string? Api { get; set; }
@@ -211,12 +168,14 @@ Add NuGet package:
 ```powershell
 cd ../ConferenceHubFunctions
 dotnet add package Azure.Messaging.EventGrid
+dotnet add package Microsoft.Azure.Functions.Worker.Extensions.EventGrid
 ```
 
 **Bash**
 ```bash
 cd ../ConferenceHubFunctions
 dotnet add package Azure.Messaging.EventGrid
+dotnet add package Microsoft.Azure.Functions.Worker.Extensions.EventGrid
 ```
 
 Deploy function:
@@ -232,28 +191,21 @@ func azure functionapp publish $functionAppName
 ### Step 4: Create Event Grid Subscription
 
 ```powershell
-# Get function URL
-$functionUrl = az functionapp function show `
+# Get function resource ID (EventGridTrigger destination)
+$functionId = az functionapp function show `
   --name $functionAppName `
   --resource-group $resourceGroupName `
   --function-name ProcessSlideUpload `
-  --query invokeUrlTemplate `
+  --query id `
   --output tsv
 
-# Get function key
-$functionKey = az functionapp keys list `
-  --name $functionAppName `
-  --resource-group $resourceGroupName `
-  --query "functionKeys.default" `
-  --output tsv
-
-# Create event subscription for BlobCreated events
+# Create event subscription for BlobCreated events (no webhook validation required)
 az eventgrid system-topic event-subscription create `
   --name slide-upload-subscription `
   --resource-group $resourceGroupName `
   --system-topic-name eg-topic-conferencehub-storage `
-  --endpoint "$functionUrl&code=$functionKey" `
-  --endpoint-type webhook `
+  --endpoint-type azurefunction `
+  --endpoint $functionId `
   --included-event-types Microsoft.Storage.BlobCreated `
   --subject-begins-with /blobServices/default/containers/speaker-slides/
 
@@ -262,30 +214,22 @@ Write-Host "Event Grid subscription created"
 
 **Bash**
 ```bash
-# Get function URL
-functionUrl=$(az functionapp function show \
-  --name $functionAppName \
-  --resource-group $resourceGroupName \
+# Get function resource ID (EventGridTrigger destination)
+functionId=$(az functionapp function show \
+  --resource-group "$resourceGroupName" \
+  --name "$functionAppName" \
   --function-name ProcessSlideUpload \
-  --query invokeUrlTemplate \
-  --output tsv)
+  --query "id" -o tsv)
 
-# Get function key
-functionKey=$(az functionapp keys list \
-  --name $functionAppName \
-  --resource-group $resourceGroupName \
-  --query "functionKeys.default" \
-  --output tsv)
-
-# Create event subscription for BlobCreated events
+# Create event subscription for BlobCreated events (no webhook validation required)
 az eventgrid system-topic event-subscription create \
   --name slide-upload-subscription \
-  --resource-group $resourceGroupName \
-  --system-topic-name eg-topic-conferencehub-storage \
-  --endpoint "$functionUrl&code=$functionKey" \
-  --endpoint-type webhook \
+  --resource-group "$resourceGroupName" \
+  --system-topic-name "eg-topic-conferencehub-storage" \
+  --endpoint-type azurefunction \
+  --endpoint "$functionId" \
   --included-event-types Microsoft.Storage.BlobCreated \
-  --subject-begins-with /blobServices/default/containers/speaker-slides/
+  --subject-begins-with "/blobServices/default/containers/speaker-slides/"
 
 echo Event Grid subscription created
 ```
@@ -325,16 +269,25 @@ echo Event Hub namespace created
 
 ```powershell
 # Create Event Hub for session feedback
+$eventHubName = "session-feedback"
+
 az eventhubs eventhub create `
-  --name session-feedback `
+  --name $eventHubName `
   --namespace-name $eventHubNamespaceName `
   --resource-group $resourceGroupName `
-  --partition-count 2 `
-  --message-retention 1
+  --partition-count 2
+
+# Verify Event Hub exists before creating consumer group
+az eventhubs eventhub show `
+  --name $eventHubName `
+  --namespace-name $eventHubNamespaceName `
+  --resource-group $resourceGroupName `
+  --query name `
+  --output tsv
 
 # Create consumer group for processing
 az eventhubs eventhub consumer-group create `
-  --eventhub-name session-feedback `
+  --eventhub-name $eventHubName `
   --namespace-name $eventHubNamespaceName `
   --resource-group $resourceGroupName `
   --name feedback-processor
@@ -345,18 +298,27 @@ Write-Host "Event Hub created"
 **Bash**
 ```bash
 # Create Event Hub for session feedback
+eventHubName="session-feedback"
+
 az eventhubs eventhub create \
-  --name session-feedback \
-  --namespace-name $eventHubNamespaceName \
-  --resource-group $resourceGroupName \
-  --partition-count 2 \
-  --message-retention 1
+  --name "$eventHubName" \
+  --namespace-name "$eventHubNamespaceName" \
+  --resource-group "$resourceGroupName" \
+  --partition-count 2
+
+# Verify Event Hub exists before creating consumer group
+az eventhubs eventhub show \
+  --name "$eventHubName" \
+  --namespace-name "$eventHubNamespaceName" \
+  --resource-group "$resourceGroupName" \
+  --query name \
+  --output tsv
 
 # Create consumer group for processing
 az eventhubs eventhub consumer-group create \
-  --eventhub-name session-feedback \
-  --namespace-name $eventHubNamespaceName \
-  --resource-group $resourceGroupName \
+  --eventhub-name "$eventHubName" \
+  --namespace-name "$eventHubNamespaceName" \
+  --resource-group "$resourceGroupName" \
   --name feedback-processor
 
 echo Event Hub created
@@ -934,7 +896,7 @@ func azure functionapp publish $functionAppName
 
 **Bash**
 ```bash
-cd ConferenceHubFunctions
+cd ConferenceHub.Functions
 func azure functionapp publish $functionAppName
 ```
 
@@ -957,7 +919,7 @@ az storage blob upload `
   --file $testFile
 
 # Check Function App logs
-az functionapp log tail `
+az webapp log tail `
   --name $functionAppName `
   --resource-group $resourceGroupName
 ```
@@ -965,20 +927,19 @@ az functionapp log tail `
 **Bash**
 ```bash
 # Upload a test file to trigger Event Grid
-testFile=$("test-slide.pdf")
-New-Item -Path $testFile -ItemType File -Force
-Set-Content -Path $testFile -Value "Test content"
+testFile="test-slide.pdf"
+echo "Test content" > "$testFile"
 
 az storage blob upload \
-  --account-name $storageAccountName \
+  --account-name "$storageAccountName" \
   --container-name speaker-slides \
   --name "session-1/test-slide.pdf" \
-  --file $testFile
+  --file "$testFile"
 
 # Check Function App logs
-az functionapp log tail \
-  --name $functionAppName \
-  --resource-group $resourceGroupName
+az webapp log tail \
+  --name "$functionAppName" \
+  --resource-group "$resourceGroupName"
 ```
 
 ### Test 2: Test Event Hub (Submit Feedback)
@@ -1058,24 +1019,39 @@ az webapp config appsettings set \
 ### Step 2: Deploy Updated Web App
 
 ```powershell
-cd ConferenceHub
-dotnet publish -c Release -o ./publish
-Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip `
-  --resource-group $resourceGroupName `
-  --name $webAppName `
-  --src ./app.zip
+ccd ConferenceHub                                                              
+  rm -rf publish app.zip                   
+  dotnet clean          
+  dotnet publish -c Release -o publish
+  cd publish && zip -r ../app.zip . && cd ..
+
+  az webapp deploy \
+    --resource-group "$resourceGroupName" \
+    --name "$webAppName" \
+    --src-path ./app.zip \
+    --type zip
 ```
 
 **Bash**
 ```bash
-cd ConferenceHub
-dotnet publish -c Release -o ./publish
-Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
-az webapp deployment source config-zip \
-  --resource-group $resourceGroupName \
-  --name $webAppName \
-  --src ./app.zip
+cd ConferenceHub                                                              
+  rm -rf publish app.zip
+  dotnet clean
+  dotnet publish -c Release -o publish
+  cd publish && zip -r ../app.zip . && cd ..
+
+  az webapp deploy \
+    --resource-group "$resourceGroupName" \
+    --name "$webAppName" \
+    --src-path ./app.zip \
+    --type zip
+
+
+
+
+az webapp log tail \                                                          
+    --resource-group "$resourceGroupName" \
+    --name "$webAppName"
 ```
 
 ---
@@ -1104,9 +1080,9 @@ In **Learning Path 10**, you'll:
 ## Troubleshooting
 
 ### Event Grid subscription validation fails
-- Ensure webhook endpoint returns validation response correctly
-- Check function authorization level (use Function level, not Anonymous)
-- Verify function URL is publicly accessible
+- Ensure destination function uses **EventGridTrigger**
+- Use `--endpoint-type azurefunction` and function **resource ID** as `--endpoint`
+- Verify function is deployed and appears in `az functionapp function show`
 
 ### Events not being received
 - Check Event Grid subscription status and filters

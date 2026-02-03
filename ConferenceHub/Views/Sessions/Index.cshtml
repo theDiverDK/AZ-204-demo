@@ -37,6 +37,9 @@
                     </div>
                     <div class="card-footer bg-transparent">
                         <a asp-action="Details" asp-route-id="@session.Id" class="btn btn-outline-primary">View Details & Register</a>
+                        <a asp-controller="Feedback" asp-action="Submit" asp-route-sessionId="@session.Id" class="btn btn-outline-warning ms-2">
+                            Give Feedback
+                        </a>
                     </div>
                 </div>
             </div>
