@@ -32,7 +32,7 @@ storageAccountName="stconferencehub$random"
 # Create a storage account for the application
 az storage account create `
   --name $storageAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --location $location `
   --sku Standard_LRS `
   --kind StorageV2
@@ -89,6 +89,8 @@ az storage account update \
     --name "$storageAccountName" \
     --resource-group "$resourceGroupName" \
     --allow-blob-public-access true
+
+--PAUSE 10 sec
 
 az storage container create \
   --name speaker-slides \

@@ -37,7 +37,7 @@ apiManagementSubscriptionKey="<your-subscription-key>"
 # Create API Management instance (this takes 30-45 minutes!)
 az apim create `
   --name $apiManagementName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --location $location `
   --publisher-email soren@reinke.dk `
   --publisher-name "ConferenceHub" `
@@ -47,7 +47,7 @@ az apim create `
 # Check provisioning status
 az apim show `
   --name $apiManagementName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --query "provisioningState"
 
 # Wait until status is "Succeeded" before continuing
@@ -59,7 +59,7 @@ az apim show `
 # Create API Management instance (this takes 30-45 minutes!)
 az apim create \
   --name $apiManagementName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --location $location \
   --publisher-email soren@reinke.dk \
   --publisher-name "ConferenceHub" \
@@ -69,7 +69,7 @@ az apim create \
 # Check provisioning status
 az apim show \
   --name $apiManagementName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --query "provisioningState"
 
 # Wait until status is "Succeeded" before continuing
@@ -88,7 +88,7 @@ Alternative: Use Azure Portal
 # Once provisioning is complete
 $apimGatewayUrl = az apim show `
   --name $apiManagementName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --query "gatewayUrl" `
   --output tsv
 
@@ -100,7 +100,7 @@ Write-Host "APIM Gateway URL: $apimGatewayUrl"
 # Once provisioning is complete
 apimGatewayUrl=$(az apim show \
   --name $apiManagementName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --query "gatewayUrl" \
   --output tsv)
 
@@ -213,7 +213,7 @@ Redeploy the application:
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name conferencehub-demo-az204reinke `
   --src ./app.zip
 ```
@@ -223,7 +223,7 @@ az webapp deployment source config-zip `
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name conferencehub-demo-az204reinke \
   --src ./app.zip
 ```
@@ -233,7 +233,7 @@ az webapp deployment source config-zip \
 ```powershell
 # Import API from Swagger/OpenAPI endpoint
 az apim api import `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --path "conferencehub" `
   --api-id "conferencehub-api" `
@@ -249,7 +249,7 @@ Write-Host "API imported successfully"
 ```bash
 # Import API from Swagger/OpenAPI endpoint
 az apim api import \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --path "conferencehub" \
   --api-id "conferencehub-api" \
@@ -267,13 +267,13 @@ echo API imported successfully
 # Get Function App host key
 $functionAppKey = az functionapp keys list `
   --name $functionAppName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --query "functionKeys.default" `
   --output tsv
 
 # Import Function App
 az apim api import `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --path "functions" `
   --api-id "functions-api" `
@@ -288,13 +288,13 @@ az apim api import `
 # Get Function App host key
 functionAppKey=$(az functionapp keys list \
   --name $functionAppName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --query "functionKeys.default" \
   --output tsv)
 
 # Import Function App
 az apim api import \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --path "functions" \
   --api-id "functions-api" \
@@ -308,7 +308,7 @@ If you don't have OpenAPI spec for Functions, create manually:
 ```powershell
 # Create API manually
 az apim api create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --api-id "functions-api" `
   --path "functions" `
@@ -318,7 +318,7 @@ az apim api create `
 
 # Add SendConfirmation operation
 az apim api operation create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --api-id "functions-api" `
   --url-template "/SendConfirmation" `
@@ -330,7 +330,7 @@ az apim api operation create `
 ```bash
 # Create API manually
 az apim api create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --api-id "functions-api" \
   --path "functions" \
@@ -340,7 +340,7 @@ az apim api create \
 
 # Add SendConfirmation operation
 az apim api operation create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --api-id "functions-api" \
   --url-template "/SendConfirmation" \
@@ -357,7 +357,7 @@ az apim api operation create \
 ```powershell
 # Create Free tier product
 az apim product create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --product-id "free-tier" `
   --product-name "Free Tier" `
@@ -368,7 +368,7 @@ az apim product create `
 
 # Create Premium tier product
 az apim product create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --product-id "premium-tier" `
   --product-name "Premium Tier" `
@@ -384,7 +384,7 @@ Write-Host "Products created"
 ```bash
 # Create Free tier product
 az apim product create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --product-id "free-tier" \
   --product-name "Free Tier" \
@@ -395,7 +395,7 @@ az apim product create \
 
 # Create Premium tier product
 az apim product create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --product-id "premium-tier" \
   --product-name "Premium Tier" \
@@ -412,27 +412,27 @@ echo Products created
 ```powershell
 # Add ConferenceHub API to Free tier
 az apim product api add `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --product-id "free-tier" `
   --api-id "conferencehub-api"
 
 # Add Functions API to Free tier
 az apim product api add `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --product-id "free-tier" `
   --api-id "functions-api"
 
 # Add both APIs to Premium tier
 az apim product api add `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --product-id "premium-tier" `
   --api-id "conferencehub-api"
 
 az apim product api add `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --product-id "premium-tier" `
   --api-id "functions-api"
@@ -442,27 +442,27 @@ az apim product api add `
 ```bash
 # Add ConferenceHub API to Free tier
 az apim product api add \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --product-id "free-tier" \
   --api-id "conferencehub-api"
 
 # Add Functions API to Free tier
 az apim product api add \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --product-id "free-tier" \
   --api-id "functions-api"
 
 # Add both APIs to Premium tier
 az apim product api add \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --product-id "premium-tier" \
   --api-id "conferencehub-api"
 
 az apim product api add \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --product-id "premium-tier" \
   --api-id "functions-api"
@@ -473,7 +473,7 @@ az apim product api add \
 ```powershell
 # Create subscription for testing
 az apim subscription create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --subscription-id "test-free-sub" `
   --name "Test Free Subscription" `
@@ -482,7 +482,7 @@ az apim subscription create `
 
 # Get subscription keys
 $subscriptionKey = az apim subscription show `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --subscription-id "test-free-sub" `
   --query "primaryKey" `
@@ -496,7 +496,7 @@ Write-Host "Save this key for testing!"
 ```bash
 # Create subscription for testing
 az apim subscription create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --subscription-id "test-free-sub" \
   --name "Test Free Subscription" \
@@ -505,7 +505,7 @@ az apim subscription create \
 
 # Get subscription keys
 subscriptionKey=$(az apim subscription show \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --subscription-id "test-free-sub" \
   --query "primaryKey" \
@@ -570,7 +570,7 @@ Create `free-tier-policy.xml`:
 Apply policy:
 ```powershell
 az apim product policy create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --product-id "free-tier" `
   --policy-xml-path "free-tier-policy.xml"
@@ -579,7 +579,7 @@ az apim product policy create `
 **Bash**
 ```bash
 az apim product policy create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --product-id "free-tier" \
   --policy-xml-path "free-tier-policy.xml"
@@ -632,7 +632,7 @@ Create `premium-tier-policy.xml`:
 
 ```powershell
 az apim product policy create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --product-id "premium-tier" `
   --policy-xml-path "premium-tier-policy.xml"
@@ -641,7 +641,7 @@ az apim product policy create `
 **Bash**
 ```bash
 az apim product policy create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --product-id "premium-tier" \
   --policy-xml-path "premium-tier-policy.xml"
@@ -681,7 +681,7 @@ Create `api-caching-policy.xml`:
 Apply to specific operation:
 ```powershell
 az apim api operation policy create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --api-id "conferencehub-api" `
   --operation-id "Sessions_Index" `
@@ -691,7 +691,7 @@ az apim api operation policy create `
 **Bash**
 ```bash
 az apim api operation policy create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --api-id "conferencehub-api" \
   --operation-id "Sessions_Index" \
@@ -792,7 +792,7 @@ Create `jwt-validation-policy.xml`:
 Apply to API:
 ```powershell
 az apim api policy create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --api-id "conferencehub-api" `
   --policy-xml-path "jwt-validation-policy.xml"
@@ -801,7 +801,7 @@ az apim api policy create `
 **Bash**
 ```bash
 az apim api policy create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --api-id "conferencehub-api" \
   --policy-xml-path "jwt-validation-policy.xml"
@@ -1090,7 +1090,7 @@ response2=$(Invoke-RestMethod \
 
 # Publish the portal
 az apim api revision create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --service-name $apiManagementName `
   --api-id "conferencehub-api" `
   --api-revision "1"
@@ -1103,7 +1103,7 @@ az apim api revision create `
 
 # Publish the portal
 az apim api revision create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --service-name $apiManagementName \
   --api-id "conferencehub-api" \
   --api-revision "1"
@@ -1164,7 +1164,7 @@ Update `.csproj` to generate XML documentation:
 ```powershell
 # Get API usage metrics
 az monitor metrics list `
-  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/Microsoft.ApiManagement/service/$apiManagementName" `
+  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/Microsoft.ApiManagement/service/$apiManagementName" `
   --metric "Requests" `
   --start-time 2024-01-01T00:00:00Z `
   --end-time 2024-12-31T23:59:59Z `
@@ -1178,7 +1178,7 @@ az monitor metrics list `
 ```bash
 # Get API usage metrics
 az monitor metrics list \
-  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/Microsoft.ApiManagement/service/$apiManagementName" \
+  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/Microsoft.ApiManagement/service/$apiManagementName" \
   --metric "Requests" \
   --start-time 2024-01-01T00:00:00Z \
   --end-time 2024-12-31T23:59:59Z \

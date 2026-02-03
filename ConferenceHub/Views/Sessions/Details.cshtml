@@ -2,6 +2,11 @@
 
 @{
     ViewData["Title"] = Model.Title;
+    var isSessionFull = Model.CurrentRegistrations >= Model.Capacity;
+    var attendeeEmailFromClaims = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+        ?? User.FindFirst("preferred_username")?.Value
+        ?? User.FindFirst("upn")?.Value
+        ?? User.FindFirst("emails")?.Value;
 }
 
 <div class="container mt-4">
@@ -11,6 +16,26 @@
             <li class="breadcrumb-item active" aria-current="page">@Model.Title</li>
         </ol>
     </nav>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <form asp-action="Register" method="post">
+            <input type="hidden" name="sessionId" value="@Model.Id" />
+            <input type="hidden" name="attendeeName" value="@User.Identity.Name" />
+            <input type="hidden" name="attendeeEmail" value="@attendeeEmailFromClaims" />
+
+            <button type="submit" class="btn btn-primary btn-lg w-100" @(isSessionFull ? "disabled" : "")>
+                <i class="bi bi-person-plus"></i> @(isSessionFull ? "Session Full" : "Register for This Session")
+            </button>
+        </form>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> Please <a asp-controller="Auth"
+                asp-action="SignIn">sign in</a> to register for this session.
+        </div>
+    }
 
     @if (TempData["Success"] != null)
     {
@@ -46,33 +71,38 @@
                     <div class="mt-3">
                         <h5>Schedule</h5>
                         <p><i class="bi bi-calendar-event"></i> @Model.StartTime.ToString("MMMM dd, yyyy")</p>
-                        <p><i class="bi bi-clock"></i> @Model.StartTime.ToString("h:mm tt") - @Model.EndTime.ToString("h:mm tt")</p>
+                        <p><i class="bi bi-clock"></i> @Model.StartTime.ToString("h:mm tt") -
+                            @Model.EndTime.ToString("h:mm tt")</p>
                     </div>
 
                     <div class="mt-3">
                         <h5>Location</h5>
                         <p><i class="bi bi-geo-alt"></i> @Model.Room</p>
                     </div>
-@if (!string.IsNullOrEmpty(Model.SlideUrl))
-{
-    <div class="mt-3">
-        <h5>Presentation Slides</h5>
-        <a href="@Model.SlideUrl" target="_blank" class="btn btn-outline-primary">
-            <i class="bi bi-file-earmark-pdf"></i> View Slides
-        </a>
-        <small class="text-muted d-block mt-1">
-            Uploaded: @Model.SlideUploadedAt?.ToString("MMM dd, yyyy")
-        </small>
-    </div>
-}
+                    @if (!string.IsNullOrEmpty(Model.SlideUrl))
+                    {
+                        <div class="mt-3">
+                            <h5>Presentation Slides</h5>
+                            <a href="@Model.SlideUrl" target="_blank" class="btn btn-outline-primary">
+                                <i class="bi bi-file-earmark-pdf"></i> View Slides
+                            </a>
+                            <small class="text-muted d-block mt-1">
+                                Uploaded: @Model.SlideUploadedAt?.ToString("MMM dd, yyyy")
+                            </small>
+                        </div>
+                    }
                     <div class="mt-3">
                         <h5>Capacity</h5>
                         <div class="progress" style="height: 25px;">
                             @{
-                                var percentage = Model.Capacity > 0 ? (Model.CurrentRegistrations * 100.0 / Model.Capacity) : 0;
-                                var progressClass = percentage >= 90 ? "bg-danger" : percentage >= 70 ? "bg-warning" : "bg-success";
+                                var percentage = Model.Capacity > 0 ? (Model.CurrentRegistrations * 100.0 / Model.Capacity)
+                                : 0;
+                                var progressClass = percentage >= 90 ? "bg-danger" : percentage >= 70 ? "bg-warning" :
+                                "bg-success";
                             }
-                            <div class="progress-bar @progressClass" role="progressbar" style="width: @percentage%" aria-valuenow="@Model.CurrentRegistrations" aria-valuemin="0" aria-valuemax="@Model.Capacity">
+                            <div class="progress-bar @progressClass" role="progressbar" style="width: @percentage%"
+                                aria-valuenow="@Model.CurrentRegistrations" aria-valuemin="0"
+                                aria-valuemax="@Model.Capacity">
                                 @Model.CurrentRegistrations / @Model.Capacity
                             </div>
                         </div>
@@ -89,11 +119,13 @@
                                     <input type="hidden" name="sessionId" value="@Model.Id" />
                                     <div class="mb-3">
                                         <label for="attendeeName" class="form-label">Name</label>
-                                        <input type="text" class="form-control" id="attendeeName" name="attendeeName" required />
+                                        <input type="text" class="form-control" id="attendeeName" name="attendeeName"
+                                            required />
                                     </div>
                                     <div class="mb-3">
                                         <label for="attendeeEmail" class="form-label">Email</label>
-                                        <input type="email" class="form-control" id="attendeeEmail" name="attendeeEmail" required />
+                                        <input type="email" class="form-control" id="attendeeEmail" name="attendeeEmail"
+                                            required />
                                     </div>
                                     <button type="submit" class="btn btn-success w-100">
                                         <i class="bi bi-check-circle"></i> Register Now

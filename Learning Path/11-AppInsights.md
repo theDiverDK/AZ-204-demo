@@ -34,13 +34,13 @@ appInsightsName="appinsights-conferencehub-$random"
 ```powershell
 # Create Log Analytics Workspace (required for Application Insights)
 az monitor log-analytics workspace create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --workspace-name $logAnalyticsWorkspaceName `
   --location $location
 
 # Get workspace ID
 $workspaceId = az monitor log-analytics workspace show `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --workspace-name $logAnalyticsWorkspaceName `
   --query id `
   --output tsv
@@ -49,19 +49,19 @@ $workspaceId = az monitor log-analytics workspace show `
 az monitor app-insights component create `
   --app $appInsightsName `
   --location $location `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --workspace $workspaceId
 
 # Get instrumentation key and connection string
 $instrumentationKey = az monitor app-insights component show `
   --app $appInsightsName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --query instrumentationKey `
   --output tsv
 
 $connectionString = az monitor app-insights component show `
   --app $appInsightsName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --query connectionString `
   --output tsv
 
@@ -79,13 +79,13 @@ az keyvault secret set `
 ```bash
 # Create Log Analytics Workspace (required for Application Insights)
 az monitor log-analytics workspace create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --workspace-name $logAnalyticsWorkspaceName \
   --location $location
 
 # Get workspace ID
 workspaceId=$(az monitor log-analytics workspace show \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --workspace-name $logAnalyticsWorkspaceName \
   --query id \
   --output tsv)
@@ -94,19 +94,19 @@ workspaceId=$(az monitor log-analytics workspace show \
 az monitor app-insights component create \
   --app $appInsightsName \
   --location $location \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --workspace $workspaceId
 
 # Get instrumentation key and connection string
 instrumentationKey=$(az monitor app-insights component show \
   --app $appInsightsName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --query instrumentationKey \
   --output tsv)
 
 connectionString=$(az monitor app-insights component show \
   --app $appInsightsName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --query connectionString \
   --output tsv)
 
@@ -126,7 +126,7 @@ az keyvault secret set \
 # Enable Application Insights on Web App
 az webapp config appsettings set `
   --name conferencehub-demo-az204reinke `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --settings `
     APPLICATIONINSIGHTS_CONNECTION_STRING="$connectionString" `
     ApplicationInsightsAgent_EXTENSION_VERSION="~3"
@@ -134,7 +134,7 @@ az webapp config appsettings set `
 # Enable always on (for continuous monitoring)
 az webapp config set `
   --name conferencehub-demo-az204reinke `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --always-on true
 ```
 
@@ -143,7 +143,7 @@ az webapp config set `
 # Enable Application Insights on Web App
 az webapp config appsettings set \
   --name conferencehub-demo-az204reinke \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --settings \
     APPLICATIONINSIGHTS_CONNECTION_STRING="$connectionString" \
     ApplicationInsightsAgent_EXTENSION_VERSION="~3"
@@ -151,7 +151,7 @@ az webapp config appsettings set \
 # Enable always on (for continuous monitoring)
 az webapp config set \
   --name conferencehub-demo-az204reinke \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --always-on true
 ```
 
@@ -161,7 +161,7 @@ az webapp config set \
 # Enable Application Insights for Function App
 az functionapp config appsettings set `
   --name $functionAppName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --settings `
     APPLICATIONINSIGHTS_CONNECTION_STRING="$connectionString"
 ```
@@ -171,7 +171,7 @@ az functionapp config appsettings set `
 # Enable Application Insights for Function App
 az functionapp config appsettings set \
   --name $functionAppName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --settings \
     APPLICATIONINSIGHTS_CONNECTION_STRING="$connectionString"
 ```
@@ -873,15 +873,15 @@ Create workbook in Azure Portal:
 # Create action group for notifications
 az monitor action-group create `
   --name ag-conferencehub-alerts `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --short-name CHAlerts `
   --email-receiver admin soren@reinke.dk
 
 # Create alert rule for high error rate
 az monitor metrics alert create `
   --name alert-high-error-rate `
-  --resource-group $resourceGroupNameName `
-  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/microsoft.insights/components/$appInsightsName" `
+  --resource-group $resourceGroupName `
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/microsoft.insights/components/$appInsightsName" `
   --condition "count requests/failed > 10" `
   --window-size 5m `
   --evaluation-frequency 1m `
@@ -894,15 +894,15 @@ az monitor metrics alert create `
 # Create action group for notifications
 az monitor action-group create \
   --name ag-conferencehub-alerts \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --short-name CHAlerts \
   --email-receiver admin soren@reinke.dk
 
 # Create alert rule for high error rate
 az monitor metrics alert create \
   --name alert-high-error-rate \
-  --resource-group $resourceGroupNameName \
-  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/microsoft.insights/components/$appInsightsName" \
+  --resource-group $resourceGroupName \
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/microsoft.insights/components/$appInsightsName" \
   --condition "count requests/failed > 10" \
   --window-size 5m \
   --evaluation-frequency 1m \
@@ -916,8 +916,8 @@ az monitor metrics alert create \
 # Alert for response time > 3 seconds
 az monitor metrics alert create `
   --name alert-slow-response `
-  --resource-group $resourceGroupNameName `
-  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/microsoft.insights/components/$appInsightsName" `
+  --resource-group $resourceGroupName `
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/microsoft.insights/components/$appInsightsName" `
   --condition "avg requests/duration > 3000" `
   --window-size 5m `
   --evaluation-frequency 1m `
@@ -930,8 +930,8 @@ az monitor metrics alert create `
 # Alert for response time > 3 seconds
 az monitor metrics alert create \
   --name alert-slow-response \
-  --resource-group $resourceGroupNameName \
-  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/microsoft.insights/components/$appInsightsName" \
+  --resource-group $resourceGroupName \
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/microsoft.insights/components/$appInsightsName" \
   --condition "avg requests/duration > 3000" \
   --window-size 5m \
   --evaluation-frequency 1m \
@@ -945,8 +945,8 @@ az monitor metrics alert create \
 # Alert for low registration success rate
 az monitor scheduled-query create `
   --name alert-low-registration-rate `
-  --resource-group $resourceGroupNameName `
-  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/microsoft.insights/components/$appInsightsName" `
+  --resource-group $resourceGroupName `
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/microsoft.insights/components/$appInsightsName" `
   --condition "count > 5" `
   --condition-query "customEvents | where name == 'RegistrationAttempt' and customDimensions.Success == 'False' | summarize FailureCount = count()" `
   --window-duration PT5M `
@@ -960,8 +960,8 @@ az monitor scheduled-query create `
 # Alert for low registration success rate
 az monitor scheduled-query create \
   --name alert-low-registration-rate \
-  --resource-group $resourceGroupNameName \
-  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/microsoft.insights/components/$appInsightsName" \
+  --resource-group $resourceGroupName \
+  --scopes "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/microsoft.insights/components/$appInsightsName" \
   --condition "count > 5" \
   --condition-query "customEvents | where name == 'RegistrationAttempt' and customDimensions.Success == 'False' | summarize FailureCount = count()" \
   --window-duration PT5M \
@@ -979,7 +979,7 @@ az monitor scheduled-query create \
 ```powershell
 # Create availability test
 az monitor app-insights web-test create `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name "Homepage Availability" `
   --location $location `
   --web-test-kind ping `
@@ -988,7 +988,7 @@ az monitor app-insights web-test create `
   --enabled true `
   --defined-web-test-name "Homepage Test" `
   --synthetic-monitor-id "homepage-test" `
-  --tags "hidden-link:/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/microsoft.insights/components/$appInsightsName=Resource" `
+  --tags "hidden-link:/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/microsoft.insights/components/$appInsightsName=Resource" `
   --location-web-test-ids "us-il-ch1-azr" "us-va-ash-azr" "emea-nl-ams-azr" `
   --web-test-request-url "https://conferencehub-demo-az204reinke.azurewebsites.net"
 ```
@@ -997,7 +997,7 @@ az monitor app-insights web-test create `
 ```bash
 # Create availability test
 az monitor app-insights web-test create \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name "Homepage Availability" \
   --location $location \
   --web-test-kind ping \
@@ -1006,7 +1006,7 @@ az monitor app-insights web-test create \
   --enabled true \
   --defined-web-test-name "Homepage Test" \
   --synthetic-monitor-id "homepage-test" \
-  --tags "hidden-link:/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/microsoft.insights/components/$appInsightsName=Resource" \
+  --tags "hidden-link:/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/microsoft.insights/components/$appInsightsName=Resource" \
   --location-web-test-ids "us-il-ch1-azr" "us-va-ash-azr" "emea-nl-ams-azr" \
   --web-test-request-url "https://conferencehub-demo-az204reinke.azurewebsites.net"
 ```
@@ -1030,7 +1030,7 @@ cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name conferencehub-demo-az204reinke `
   --src ./app.zip
 
@@ -1046,7 +1046,7 @@ cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name conferencehub-demo-az204reinke \
   --src ./app.zip
 

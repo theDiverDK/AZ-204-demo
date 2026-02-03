@@ -10,7 +10,7 @@ This guide deploys the base ConferenceHub infrastructure and the web app using A
 ```bash
 # Required
 location="swedencentral"
-resourceGroupName="$resourceGroupName"
+resourceGroupName="rg-conferencehub"
 
 # Random suffix for globally unique names
 random=14537 #"$RANDOM"
@@ -29,14 +29,14 @@ zipPath="./ConferenceHub.zip"
 
 ## Step 1: Create Resource Group
 ```bash
-az group create --name "$resourceGroupNameName" --location "$location"
+az group create --name "$resourceGroupName" --location "$location"
 ```
 
 ## Step 2: Create App Service Plan (Linux)
 ```bash
 az appservice plan create \
   --name "$appServicePlanName" \
-  --resource-group "$resourceGroupNameName" \
+  --resource-group "$resourceGroupName" \
   --location "$location" \
   --sku P0v3 \
   --is-linux
@@ -46,7 +46,7 @@ az appservice plan create \
 ```bash
 az webapp create \
   --name "$webAppName" \
-  --resource-group "$resourceGroupNameName" \
+  --resource-group "$resourceGroupName" \
   --plan "$appServicePlanName" \
   --runtime "$appRuntime"
 ```
@@ -74,7 +74,7 @@ rm -f "$zipPath"
 ## Step 5: Deploy the App (ZIP Deploy)
 ```bash
 az webapp deploy \
-  --resource-group "$resourceGroupNameName" \
+  --resource-group "$resourceGroupName" \
   --name "$webAppName" \
   --src-path "$zipPath"
 ```
@@ -82,7 +82,7 @@ az webapp deploy \
 ## Step 6: Set Startup Command
 ```bash
 az webapp config set \
-  --resource-group "$resourceGroupNameName" \
+  --resource-group "$resourceGroupName" \
   --name "$webAppName" \
   --startup-file "/home/site/wwwroot/ConferenceHub"
 ```
@@ -90,6 +90,6 @@ az webapp config set \
 ## Step 7: Browse the App
 ```bash
 az webapp browse \
-  --resource-group "$resourceGroupNameName" \
+  --resource-group "$resourceGroupName" \
   --name "$webAppName"
 ```

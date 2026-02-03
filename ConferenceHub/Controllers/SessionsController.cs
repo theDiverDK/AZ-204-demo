@@ -1,12 +1,15 @@
 using ConferenceHub.Models;
 using ConferenceHub.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 
 namespace ConferenceHub.Controllers
 {
+    [Authorize]
     public class SessionsController : Controller
     {
         private readonly ICosmosDbService _cosmosDbService;
@@ -30,6 +33,7 @@ namespace ConferenceHub.Controllers
         }
 
         // GET: Sessions
+        [AllowAnonymous]
         public async Task<IActionResult> Index(string? track, string? level)
         {
             IEnumerable<Session> sessions;
@@ -54,6 +58,7 @@ namespace ConferenceHub.Controllers
         }
 
         // GET: Sessions/Details/5
+        [AllowAnonymous]
         public async Task<IActionResult> Details(string id)
         {
             var session = await _cosmosDbService.GetSessionByIdAsync(id);
@@ -70,6 +75,7 @@ namespace ConferenceHub.Controllers
 
         // POST: Sessions/Register
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> Register(string sessionId, string attendeeName, string attendeeEmail)
         {
             var session = await _cosmosDbService.GetSessionByIdAsync(sessionId);
@@ -84,6 +90,10 @@ namespace ConferenceHub.Controllers
                 TempData["Error"] = "Registration for this session is closed.";
                 return RedirectToAction(nameof(Details), new { id = sessionId });
             }
+
+            // If the form did not provide an email/name, use authenticated user claims.
+            attendeeEmail = string.IsNullOrWhiteSpace(attendeeEmail) ? GetCurrentUserEmail() ?? string.Empty : attendeeEmail;
+            attendeeName = string.IsNullOrWhiteSpace(attendeeName) ? (User.Identity?.Name ?? "Authenticated User") : attendeeName;
 
             // Get current registration count
             var currentCount = await _cosmosDbService.GetRegistrationCountBySessionAsync(sessionId);
@@ -116,6 +126,34 @@ namespace ConferenceHub.Controllers
             TempData["Success"] = "Successfully registered for the session!";
             
             return RedirectToAction(nameof(Details), new { id = sessionId });
+        }
+        
+// GET: Sessions/MyRegistrations
+        [Authorize]
+        public async Task<IActionResult> MyRegistrations()
+        {
+            var userEmail = GetCurrentUserEmail();
+            if (string.IsNullOrEmpty(userEmail))
+            {
+                return RedirectToAction(nameof(Index));
+            }
+
+            var allRegistrations = await _cosmosDbService.GetRegistrationsAsync();
+            var myRegistrations = allRegistrations.Where(r => r.AttendeeEmail == userEmail).ToList();
+
+            var sessions = await _cosmosDbService.GetSessionsAsync();
+            var mySessionIds = myRegistrations.Select(r => r.SessionId).ToHashSet();
+            var mySessions = sessions.Where(s => mySessionIds.Contains(s.Id)).ToList();
+
+            return View(mySessions);
+        }
+
+        private string? GetCurrentUserEmail()
+        {
+            return User.FindFirstValue(ClaimTypes.Email)
+                ?? User.FindFirstValue("preferred_username")
+                ?? User.FindFirstValue("upn")
+                ?? User.FindFirstValue("emails");
         }
 
         private async Task SendConfirmationEmailAsync(Session session, string attendeeName, string attendeeEmail)
@@ -161,4 +199,3 @@ namespace ConferenceHub.Controllers
         }
     }
 }
-

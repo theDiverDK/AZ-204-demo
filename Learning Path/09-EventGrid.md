@@ -35,7 +35,7 @@ eventGridTopicName="evgt-conferencehub-$random"
 # Get storage account ID
 $storageAccountId = az storage account show `
   --name $storageAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --query id `
   --output tsv
 
@@ -47,7 +47,7 @@ Write-Host "Storage Account ID: $storageAccountId"
 # Get storage account ID
 storageAccountId=$(az storage account show \
   --name $storageAccountName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --query id \
   --output tsv)
 
@@ -60,7 +60,7 @@ echo Storage Account ID: $storageAccountId
 # Create Event Grid system topic for blob storage
 az eventgrid system-topic create `
   --name eg-topic-conferencehub-storage `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --location $location `
   --topic-type Microsoft.Storage.StorageAccounts `
   --source $storageAccountId
@@ -73,7 +73,7 @@ Write-Host "Event Grid system topic created"
 # Create Event Grid system topic for blob storage
 az eventgrid system-topic create \
   --name eg-topic-conferencehub-storage \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --location $location \
   --topic-type Microsoft.Storage.StorageAccounts \
   --source $storageAccountId
@@ -235,7 +235,7 @@ func azure functionapp publish $functionAppName
 # Get function URL
 $functionUrl = az functionapp function show `
   --name $functionAppName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --function-name ProcessSlideUpload `
   --query invokeUrlTemplate `
   --output tsv
@@ -243,14 +243,14 @@ $functionUrl = az functionapp function show `
 # Get function key
 $functionKey = az functionapp keys list `
   --name $functionAppName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --query "functionKeys.default" `
   --output tsv
 
 # Create event subscription for BlobCreated events
 az eventgrid system-topic event-subscription create `
   --name slide-upload-subscription `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --system-topic-name eg-topic-conferencehub-storage `
   --endpoint "$functionUrl&code=$functionKey" `
   --endpoint-type webhook `
@@ -265,7 +265,7 @@ Write-Host "Event Grid subscription created"
 # Get function URL
 functionUrl=$(az functionapp function show \
   --name $functionAppName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --function-name ProcessSlideUpload \
   --query invokeUrlTemplate \
   --output tsv)
@@ -273,14 +273,14 @@ functionUrl=$(az functionapp function show \
 # Get function key
 functionKey=$(az functionapp keys list \
   --name $functionAppName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --query "functionKeys.default" \
   --output tsv)
 
 # Create event subscription for BlobCreated events
 az eventgrid system-topic event-subscription create \
   --name slide-upload-subscription \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --system-topic-name eg-topic-conferencehub-storage \
   --endpoint "$functionUrl&code=$functionKey" \
   --endpoint-type webhook \
@@ -300,7 +300,7 @@ echo Event Grid subscription created
 # Create Event Hub namespace
 az eventhubs namespace create `
   --name $eventHubNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --location $location `
   --sku Standard `
   --capacity 1
@@ -313,7 +313,7 @@ Write-Host "Event Hub namespace created"
 # Create Event Hub namespace
 az eventhubs namespace create \
   --name $eventHubNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --location $location \
   --sku Standard \
   --capacity 1
@@ -328,7 +328,7 @@ echo Event Hub namespace created
 az eventhubs eventhub create `
   --name session-feedback `
   --namespace-name $eventHubNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --partition-count 2 `
   --message-retention 1
 
@@ -336,7 +336,7 @@ az eventhubs eventhub create `
 az eventhubs eventhub consumer-group create `
   --eventhub-name session-feedback `
   --namespace-name $eventHubNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name feedback-processor
 
 Write-Host "Event Hub created"
@@ -348,7 +348,7 @@ Write-Host "Event Hub created"
 az eventhubs eventhub create \
   --name session-feedback \
   --namespace-name $eventHubNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --partition-count 2 \
   --message-retention 1
 
@@ -356,7 +356,7 @@ az eventhubs eventhub create \
 az eventhubs eventhub consumer-group create \
   --eventhub-name session-feedback \
   --namespace-name $eventHubNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name feedback-processor
 
 echo Event Hub created
@@ -368,7 +368,7 @@ echo Event Hub created
 # Get Event Hub connection string
 $eventHubConnectionString = az eventhubs namespace authorization-rule keys list `
   --namespace-name $eventHubNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name RootManageSharedAccessKey `
   --query primaryConnectionString `
   --output tsv
@@ -387,7 +387,7 @@ az keyvault secret set `
 # Get Event Hub connection string
 eventHubConnectionString=$(az eventhubs namespace authorization-rule keys list \
   --namespace-name $eventHubNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name RootManageSharedAccessKey \
   --query primaryConnectionString \
   --output tsv)
@@ -905,7 +905,7 @@ $eventHubConnectionString = az keyvault secret show `
 # Add to Function App settings
 az functionapp config appsettings set `
   --name $functionAppName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --settings EventHubConnectionString="$eventHubConnectionString"
 ```
 
@@ -921,7 +921,7 @@ eventHubConnectionString=$(az keyvault secret show \
 # Add to Function App settings
 az functionapp config appsettings set \
   --name $functionAppName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --settings EventHubConnectionString="$eventHubConnectionString"
 ```
 
@@ -959,7 +959,7 @@ az storage blob upload `
 # Check Function App logs
 az functionapp log tail `
   --name $functionAppName `
-  --resource-group $resourceGroupNameName
+  --resource-group $resourceGroupName
 ```
 
 **Bash**
@@ -978,7 +978,7 @@ az storage blob upload \
 # Check Function App logs
 az functionapp log tail \
   --name $functionAppName \
-  --resource-group $resourceGroupNameName
+  --resource-group $resourceGroupName
 ```
 
 ### Test 2: Test Event Hub (Submit Feedback)
@@ -1006,7 +1006,7 @@ Alternative - Send test event programmatically:
 ```powershell
 # View Event Hub metrics
 az monitor metrics list `
-  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/Microsoft.EventHub/namespaces/$eventHubNamespaceName" `
+  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/Microsoft.EventHub/namespaces/$eventHubNamespaceName" `
   --metric "IncomingMessages" `
   --start-time 2024-01-01T00:00:00Z
 
@@ -1021,7 +1021,7 @@ az monitor metrics list `
 ```bash
 # View Event Hub metrics
 az monitor metrics list \
-  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupNameName/providers/Microsoft.EventHub/namespaces/$eventHubNamespaceName" \
+  --resource "/subscriptions/YOUR_SUB_ID/resourceGroups/$resourceGroupName/providers/Microsoft.EventHub/namespaces/$eventHubNamespaceName" \
   --metric "IncomingMessages" \
   --start-time 2024-01-01T00:00:00Z
 
@@ -1042,7 +1042,7 @@ az monitor metrics list \
 # Add Event Hub connection string to Web App
 az webapp config appsettings set `
   --name conferencehub-demo-az204reinke `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --settings EventHub__ConnectionString="@Microsoft.KeyVault(SecretUri=https://$keyVaultName.vault.azure.net/secrets/EventHub--ConnectionString/)"
 ```
 
@@ -1051,7 +1051,7 @@ az webapp config appsettings set `
 # Add Event Hub connection string to Web App
 az webapp config appsettings set \
   --name conferencehub-demo-az204reinke \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --settings EventHub__ConnectionString="@Microsoft.KeyVault(SecretUri=https://$keyVaultName.vault.azure.net/secrets/EventHub--ConnectionString/)"
 ```
 
@@ -1062,7 +1062,7 @@ cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name conferencehub-demo-az204reinke `
   --src ./app.zip
 ```
@@ -1073,7 +1073,7 @@ cd ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name conferencehub-demo-az204reinke \
   --src ./app.zip
 ```

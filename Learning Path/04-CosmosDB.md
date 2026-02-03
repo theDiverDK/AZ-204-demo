@@ -35,7 +35,7 @@ functionAppName="func-conferencehub-$random"
 # Create Cosmos DB account (SQL API)
 az cosmosdb create `
   --name $cosmosAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --kind GlobalDocumentDB `
   --locations regionName=$location failoverPriority=0 isZoneRedundant=False `
   --default-consistency-level Session `

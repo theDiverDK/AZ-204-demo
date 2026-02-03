@@ -35,7 +35,7 @@ serviceBusTopicName="notification-topic"
 # Create Service Bus namespace
 az servicebus namespace create `
   --name $serviceBusNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --location $location `
   --sku Standard
 
@@ -47,7 +47,7 @@ Write-Host "Service Bus namespace created"
 # Create Service Bus namespace
 az servicebus namespace create \
   --name $serviceBusNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --location $location \
   --sku Standard
 
@@ -60,7 +60,7 @@ echo Service Bus namespace created
 # Create queue for registration processing
 az servicebus queue create `
   --namespace-name $serviceBusNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name registration-queue `
   --max-delivery-count 5 `
   --lock-duration PT5M `
@@ -75,7 +75,7 @@ Write-Host "Registration queue created"
 # Create queue for registration processing
 az servicebus queue create \
   --namespace-name $serviceBusNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name registration-queue \
   --max-delivery-count 5 \
   --lock-duration PT5M \
@@ -91,21 +91,21 @@ echo Registration queue created
 # Create topic for notifications
 az servicebus topic create `
   --namespace-name $serviceBusNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name notification-topic `
   --default-message-time-to-live P14D
 
 # Create subscription for email notifications
 az servicebus topic subscription create `
   --namespace-name $serviceBusNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --topic-name notification-topic `
   --name email-subscription
 
 # Create subscription for SMS notifications
 az servicebus topic subscription create `
   --namespace-name $serviceBusNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --topic-name notification-topic `
   --name sms-subscription `
   --max-delivery-count 3
@@ -113,7 +113,7 @@ az servicebus topic subscription create `
 # Create subscription for mobile push notifications
 az servicebus topic subscription create `
   --namespace-name $serviceBusNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --topic-name notification-topic `
   --name mobile-subscription
 
@@ -125,21 +125,21 @@ Write-Host "Notification topic and subscriptions created"
 # Create topic for notifications
 az servicebus topic create \
   --namespace-name $serviceBusNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name notification-topic \
   --default-message-time-to-live P14D
 
 # Create subscription for email notifications
 az servicebus topic subscription create \
   --namespace-name $serviceBusNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --topic-name notification-topic \
   --name email-subscription
 
 # Create subscription for SMS notifications
 az servicebus topic subscription create \
   --namespace-name $serviceBusNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --topic-name notification-topic \
   --name sms-subscription \
   --max-delivery-count 3
@@ -147,7 +147,7 @@ az servicebus topic subscription create \
 # Create subscription for mobile push notifications
 az servicebus topic subscription create \
   --namespace-name $serviceBusNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --topic-name notification-topic \
   --name mobile-subscription
 
@@ -160,7 +160,7 @@ echo Notification topic and subscriptions created
 # Get Service Bus connection string
 $serviceBusConnectionString = az servicebus namespace authorization-rule keys list `
   --namespace-name $serviceBusNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name RootManageSharedAccessKey `
   --query primaryConnectionString `
   --output tsv
@@ -179,7 +179,7 @@ az keyvault secret set `
 # Get Service Bus connection string
 serviceBusConnectionString=$(az servicebus namespace authorization-rule keys list \
   --namespace-name $serviceBusNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name RootManageSharedAccessKey \
   --query primaryConnectionString \
   --output tsv)
@@ -203,7 +203,7 @@ az keyvault secret set \
 # Get storage account key
 $storageKey = az storage account keys list `
   --account-name $storageAccountName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --query "[0].value" `
   --output tsv
 
@@ -227,7 +227,7 @@ Write-Host "Storage queues created"
 # Get storage account key
 storageKey=$(az storage account keys list \
   --account-name $storageAccountName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --query "[0].value" \
   --output tsv)
 
@@ -962,7 +962,7 @@ dotnet add package Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues
 # Add Service Bus connection string
 az functionapp config appsettings set `
   --name $functionAppName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --settings ServiceBusConnectionString="@Microsoft.KeyVault(SecretUri=https://$keyVaultName.vault.azure.net/secrets/ServiceBus--ConnectionString/)"
 ```
 
@@ -971,7 +971,7 @@ az functionapp config appsettings set `
 # Add Service Bus connection string
 az functionapp config appsettings set \
   --name $functionAppName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --settings ServiceBusConnectionString="@Microsoft.KeyVault(SecretUri=https://$keyVaultName.vault.azure.net/secrets/ServiceBus--ConnectionString/)"
 ```
 
@@ -995,7 +995,7 @@ cd ../ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name conferencehub-demo-az204reinke `
   --src ./app.zip
 ```
@@ -1006,7 +1006,7 @@ cd ../ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name conferencehub-demo-az204reinke \
   --src ./app.zip
 ```
@@ -1089,7 +1089,7 @@ namespace ConferenceHubFunctions
 # Check queue metrics
 az servicebus queue show `
   --namespace-name $serviceBusNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --name registration-queue `
   --query "{ActiveMessages:countDetails.activeMessageCount, DeadLetter:countDetails.deadLetterMessageCount}"
 ```
@@ -1102,7 +1102,7 @@ az servicebus queue show `
 # Check queue metrics
 az servicebus queue show \
   --namespace-name $serviceBusNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --name registration-queue \
   --query "{ActiveMessages:countDetails.activeMessageCount, DeadLetter:countDetails.deadLetterMessageCount}"
 ```
@@ -1113,7 +1113,7 @@ az servicebus queue show \
 # View subscription metrics
 az servicebus topic subscription show `
   --namespace-name $serviceBusNamespaceName `
-  --resource-group $resourceGroupNameName `
+  --resource-group $resourceGroupName `
   --topic-name notification-topic `
   --name email-subscription `
   --query "countDetails"
@@ -1124,7 +1124,7 @@ az servicebus topic subscription show `
 # View subscription metrics
 az servicebus topic subscription show \
   --namespace-name $serviceBusNamespaceName \
-  --resource-group $resourceGroupNameName \
+  --resource-group $resourceGroupName \
   --topic-name notification-topic \
   --name email-subscription \
   --query "countDetails"

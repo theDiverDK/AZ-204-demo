@@ -36,8 +36,9 @@ azureAdClientSecret="<your-client-secret>"
 az ad app create `
   --display-name "ConferenceHub-WebApp" `
   --sign-in-audience AzureADMyOrg `
-  --web-redirect-uris "https://conferencehub-demo-az204reinke.azurewebsites.net/signin-oidc" "https://localhost:7055/signin-oidc" `
+  --web-redirect-uris "https://$webAppName.azurewebsites.net/.auth/login/aad/callback" "https://$webAppName.azurewebsites.net/signin-oidc" "https://localhost:7055/signin-oidc" `
   --enable-id-token-issuance true
+
 
 # Get the Application (client) ID
 $appId = az ad app list --display-name "ConferenceHub-WebApp" --query "[0].appId" -o tsv
@@ -54,7 +55,7 @@ Write-Host "Tenant ID: $tenantId"
 az ad app create \
   --display-name "ConferenceHub-WebApp" \
   --sign-in-audience AzureADMyOrg \
-  --web-redirect-uris "https://conferencehub-demo-az204reinke.azurewebsites.net/signin-oidc" "https://localhost:7055/signin-oidc" \
+  --web-redirect-uris "https://$webAppName.azurewebsites.net/.auth/login/aad/callback" "https://$webAppName.azurewebsites.net/signin-oidc" "https://localhost:7055/signin-oidc" \
   --enable-id-token-issuance true
 
 # Get the Application (client) ID
@@ -160,14 +161,26 @@ az rest --method POST `
 
 **Bash**
 ```bash
+# Ensure Service Principal (Enterprise App) exists for this app registration
+az ad sp create --id "$appId" >/dev/null 2>&1 || true
+
 # Get the Enterprise App (Service Principal) object ID
-spObjectId=$(az ad sp list --display-name "ConferenceHub-WebApp" --query "[0].id" -o tsv)
+spObjectId=$(az ad sp show --id "$appId" --query id -o tsv)
 
 # Get your user object ID
 userObjectId=$(az ad signed-in-user show --query id -o tsv)
 
 # Get the Organizer role ID
-organizerRoleId=$(az ad app show --id "$appId" --query "appRoles[?value=='Organizer'].id" -o tsv)
+organizerRoleId=$(az ad app show --id "$appId" --query "appRoles[?value=='Organizer'] | [0].id" -o tsv)
+
+# Validate required IDs
+if [[ -z "$spObjectId" || -z "$userObjectId" || -z "$organizerRoleId" ]]; then
+  echo "Missing required ID(s)."
+  echo "spObjectId: $spObjectId"
+  echo "userObjectId: $userObjectId"
+  echo "organizerRoleId: $organizerRoleId"
+  exit 1
+fi
 
 # Assign yourself the Organizer role
 az rest --method POST \
@@ -772,8 +785,8 @@ else
 ```powershell
 # Configure authentication for the App Service
 az webapp auth update `
-  --resource-group $resourceGroupNameName `
-  --name conferencehub-demo-az204reinke `
+  --resource-group $resourceGroupName `
+  --name $webAppName `
   --enabled true `
   --action LoginWithAzureActiveDirectory `
   --aad-client-id $appId `
@@ -783,10 +796,14 @@ az webapp auth update `
 
 **Bash**
 ```bash
+
+LAD VÆRE
+
+
 # Configure authentication for the App Service
 az webapp auth update \
-  --resource-group "$resourceGroupNameName" \
-  --name "conferencehub-demo-az204reinke" \
+  --resource-group "$resourceGroupName" \
+  --name "$webAppName" \
   --enabled true \
   --action LoginWithAzureActiveDirectory \
   --aad-client-id "$appId" \
@@ -794,13 +811,24 @@ az webapp auth update \
   --aad-token-issuer-url "https://login.microsoftonline.com/$tenantId/v2.0"
 ```
 
+hvis fejler:
+az webapp auth update \
+    --resource-group "$resourceGroupName" \
+    --name "$webAppName" \
+    --enabled false
+
+  az webapp restart \
+    --resource-group "$resourceGroupName" \
+    --name "$webAppName"
+
+
 ### Step 2: Add App Settings
 
 ```powershell
 # Add Azure AD configuration to App Service
 az webapp config appsettings set `
-  --name conferencehub-demo-az204reinke `
-  --resource-group $resourceGroupNameName `
+  --name $webAppName `
+  --resource-group $resourceGroupName `
   --settings `
     AzureAd__Instance="https://login.microsoftonline.com/" `
     AzureAd__TenantId="$tenantId" `
@@ -812,8 +840,8 @@ az webapp config appsettings set `
 ```bash
 # Add Azure AD configuration to App Service
 az webapp config appsettings set \
-  --name "conferencehub-demo-az204reinke" \
-  --resource-group "$resourceGroupNameName" \
+  --name "$webAppName" \
+  --resource-group "$resourceGroupName" \
   --settings \
     AzureAd__Instance="https://login.microsoftonline.com/" \
     AzureAd__TenantId="$tenantId" \
@@ -1016,22 +1044,30 @@ cd ../ConferenceHub
 dotnet publish -c Release -o ./publish
 Compress-Archive -Path ./publish/* -DestinationPath ./app.zip -Force
 az webapp deployment source config-zip `
-  --resource-group $resourceGroupNameName `
-  --name conferencehub-demo-az204reinke `
+  --resource-group $resourceGroupName `
+  --name $webAppName `
   --src ./app.zip
 ```
 
 **Bash**
 ```bash
+
+az webapp config set \
+    --resource-group "$resourceGroupName" \
+    --name "$webAppName" \
+    --startup-file "dotnet ConferenceHub.dll"
+
+
 cd ../ConferenceHub
 dotnet publish -c Release -o ./publish
 cd publish
 zip -r ../app.zip .
 cd ..
-az webapp deployment source config-zip \
-  --resource-group "$resourceGroupNameName" \
-  --name "conferencehub-demo-az204reinke" \
-  --src ./app.zip
+az webapp deploy \
+    --resource-group "$resourceGroupName" \
+    --name "$webAppName" \
+    --src-path ./app.zip \
+    --type zip
 ```
 
 ### Step 2: Deploy Functions
@@ -1049,7 +1085,7 @@ func azure functionapp publish "$functionAppName"
 ### Step 3: Test Authentication Flow
 
 1. **Test Anonymous Access**:
-   - Navigate to https://conferencehub-demo-az204reinke.azurewebsites.net
+   - Navigate to https://$webAppName.azurewebsites.net
    - View sessions list (should work without login)
    - Click on a session detail (should work)
    - Try to register (should prompt for login)

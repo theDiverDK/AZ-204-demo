@@ -1,0 +1,16 @@
+[
+  {
+    "allowedMemberTypes": ["User"],
+    "description": "Organizers can manage sessions and view registrations",
+    "displayName": "Organizer",
+    "isEnabled": true,
+    "value": "Organizer"
+  },
+  {
+    "allowedMemberTypes": ["User"],
+    "description": "Attendees can view and register for sessions",
+    "displayName": "Attendee",
+    "isEnabled": true,
+    "value": "Attendee"
+  }
+]
