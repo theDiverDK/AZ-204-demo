@@ -1,3 +1,40 @@
-ConferenceHub.Functions/.azurite/
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# .NET build artifacts
+**/bin/
+**/obj/
+**/.vs/
+*.pdb
+
+# Local config and secrets
+**/local.settings.json
+**/appsettings.Development.json
+
+# Azure Functions / Azurite local artifacts
+**/.azurite/
 ConferenceHub.Functions/publish-func/
 ConferenceHub.Functions/func.zip
+
+# ConferenceHub publish output accidentally placed in project root
+ConferenceHub/*.dll
+ConferenceHub/*.deps.json
+ConferenceHub/*.runtimeconfig.json
+ConferenceHub/*.staticwebassets.endpoints.json
+ConferenceHub/ConferenceHub
+ConferenceHub/runtimes/
+
+# ConferenceHub.Functions publish output accidentally placed in project root
+ConferenceHub.Functions/*.dll
+ConferenceHub.Functions/*.deps.json
+ConferenceHub.Functions/*.runtimeconfig.json
+ConferenceHub.Functions/*.staticwebassets.endpoints.json
+ConferenceHub.Functions/ConferenceHub.Functions
+ConferenceHub.Functions/runtimes/
