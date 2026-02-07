@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-source "$repo_root/tools/variable.sh"
+source "$repo_root/tools/variables.sh"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
