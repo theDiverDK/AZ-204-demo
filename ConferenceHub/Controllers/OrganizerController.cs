@@ -10,12 +10,17 @@ namespace ConferenceHub.Controllers
     {
         private readonly IDataService _dataService;
         private readonly ISlideStorageService _slideStorageService;
+        private readonly IThumbnailJobQueueService _thumbnailJobQueueService;
         private static readonly string[] AllowedSlideExtensions = [".pdf", ".jpg", ".jpeg"];
 
-        public OrganizerController(IDataService dataService, ISlideStorageService slideStorageService)
+        public OrganizerController(
+            IDataService dataService,
+            ISlideStorageService slideStorageService,
+            IThumbnailJobQueueService thumbnailJobQueueService)
         {
             _dataService = dataService;
             _slideStorageService = slideStorageService;
+            _thumbnailJobQueueService = thumbnailJobQueueService;
         }
 
         // GET: Organizer
@@ -110,6 +115,7 @@ namespace ConferenceHub.Controllers
             var uploadedUrls = await _slideStorageService.UploadSlidesAsync(id, validSlides);
             session.SlideUrls.AddRange(uploadedUrls);
             await _dataService.UpdateSessionAsync(session);
+            await _thumbnailJobQueueService.EnqueueAsync(id, uploadedUrls);
 
             TempData["Success"] = $"Uploaded {uploadedUrls.Count} slide(s) successfully.";
             return RedirectToAction(nameof(Edit), new { id });

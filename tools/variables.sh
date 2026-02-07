@@ -74,3 +74,11 @@ eventhub_name="conferencehub-events"
 eventhub_auth_rule_name="conferencehub-send"
 eventgrid_subscription_name="egsub-slides-upload"
 kv_secret_eventhub_connection_string_name="eventhub-connection-string"
+
+# LP10 Service Bus and Queue Storage variables
+servicebus_namespace_name="sbns-conferencehub-${random}"
+servicebus_topic_name="registrations"
+servicebus_subscription_name="email-worker"
+servicebus_auth_rule_name="conferencehub-messaging"
+thumbnail_queue_name="slide-thumbnail-jobs"
+kv_secret_servicebus_connection_string_name="servicebus-connection-string"

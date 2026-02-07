@@ -2,38 +2,26 @@ using ConferenceHub.Models;
 using ConferenceHub.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
 using System.Security.Claims;
-using System.Text;
-using System.Text.Json;
 
 namespace ConferenceHub.Controllers
 {
     public class SessionsController : Controller
     {
         private readonly IDataService _dataService;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly AzureFunctionsConfig _functionsConfig;
+        private readonly IRegistrationMessagePublisher _registrationMessagePublisher;
         private readonly IEventTelemetryService _eventTelemetryService;
-        private readonly string _apiMode;
-        private readonly string _functionsBaseUrl;
         private readonly ILogger<SessionsController> _logger;
 
         public SessionsController(
             IDataService dataService,
+            IRegistrationMessagePublisher registrationMessagePublisher,
             IEventTelemetryService eventTelemetryService,
-            IHttpClientFactory httpClientFactory,
-            IOptions<AzureFunctionsConfig> functionsConfig,
-            IConfiguration configuration,
             ILogger<SessionsController> logger)
         {
             _dataService = dataService;
+            _registrationMessagePublisher = registrationMessagePublisher;
             _eventTelemetryService = eventTelemetryService;
-            _httpClientFactory = httpClientFactory;
-            _functionsConfig = functionsConfig.Value;
-            _apiMode = (configuration["API_MODE"] ?? "none").Trim().ToLowerInvariant();
-            _functionsBaseUrl = (configuration["FUNCTIONS_BASE_URL"] ?? string.Empty).Trim().TrimEnd('/');
             _logger = logger;
         }
 
@@ -111,69 +99,30 @@ namespace ConferenceHub.Controllers
 
             TempData["Success"] = "Successfully registered for the session!";
 
-            // Call Azure Function at the end of registration flow
-            await SendConfirmationEmailAsync(session, attendeeName, attendeeEmail);
+            await PublishRegistrationMessageAsync(session, attendeeName, attendeeEmail);
 
             return RedirectToAction(nameof(Details), new { id = sessionId });
         }
 
-        private async Task SendConfirmationEmailAsync(Session session, string attendeeName, string attendeeEmail)
+        private async Task PublishRegistrationMessageAsync(Session session, string attendeeName, string attendeeEmail)
         {
             try
             {
-                if (_apiMode == "none")
+                var registrationRequest = new RegistrationMessage
                 {
-                    _logger.LogInformation("API_MODE=none. Skipping confirmation call for {Email}", attendeeEmail);
-                    return;
-                }
-
-                var client = _httpClientFactory.CreateClient();
-
-                var registrationRequest = new
-                {
-                    sessionId = session.Id,
-                    sessionTitle = session.Title,
-                    attendeeName = attendeeName,
-                    attendeeEmail = attendeeEmail,
-                    sessionStartTime = session.StartTime,
-                    room = session.Room
+                    SessionId = session.Id,
+                    SessionTitle = session.Title,
+                    AttendeeName = attendeeName,
+                    AttendeeEmail = attendeeEmail,
+                    SessionStartTime = session.StartTime,
+                    Room = session.Room
                 };
 
-                var json = JsonSerializer.Serialize(registrationRequest);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var url = _functionsConfig.SendConfirmationUrl;
-                if (_apiMode == "functions" && !string.IsNullOrWhiteSpace(_functionsBaseUrl))
-                {
-                    url = $"{_functionsBaseUrl}/api/SendConfirmation";
-                }
-
-                if (string.IsNullOrWhiteSpace(url))
-                {
-                    _logger.LogWarning("No function URL configured. Skipping confirmation call.");
-                    return;
-                }
-
-                if (!string.IsNullOrEmpty(_functionsConfig.FunctionKey))
-                {
-                    url += $"?code={_functionsConfig.FunctionKey}";
-                }
-
-                var response = await client.PostAsync(url, content);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Confirmation email sent successfully for {Email}", attendeeEmail);
-                }
-                else
-                {
-                    _logger.LogWarning("Failed to send confirmation email. Status: {Status}", response.StatusCode);
-                }
+                await _registrationMessagePublisher.PublishAsync(registrationRequest);
             }
             catch (Exception ex)
             {
-                // Don't fail the registration if email fails
-                _logger.LogError(ex, "Error calling SendConfirmation function");
+                _logger.LogError(ex, "Error publishing registration message");
             }
         }
     }

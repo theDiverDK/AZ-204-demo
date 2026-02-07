@@ -33,6 +33,12 @@ builder.Services.AddSingleton<ISlideStorageService, SlideStorageService>();
 builder.Services.Configure<EventHubConfig>(
     builder.Configuration.GetSection("EventHub"));
 builder.Services.AddSingleton<IEventTelemetryService, EventTelemetryService>();
+builder.Services.Configure<ServiceBusConfig>(
+    builder.Configuration.GetSection("ServiceBus"));
+builder.Services.AddSingleton<IRegistrationMessagePublisher, RegistrationMessagePublisher>();
+builder.Services.Configure<ThumbnailQueueConfig>(
+    builder.Configuration.GetSection("ThumbnailQueue"));
+builder.Services.AddSingleton<IThumbnailJobQueueService, ThumbnailJobQueueService>();
 
 // Configure Azure Functions settings
 builder.Services.Configure<AzureFunctionsConfig>(

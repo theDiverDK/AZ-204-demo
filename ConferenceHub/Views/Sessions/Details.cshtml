@@ -64,10 +64,27 @@
                                     var slideUrl = Model.SlideUrls[i];
                                     var extension = System.IO.Path.GetExtension(slideUrl).ToLowerInvariant();
                                     var label = extension == ".pdf" ? "PDF" : "Image";
+                                    var dotIndex = slideUrl.LastIndexOf('.');
+                                    var thumbnailUrl = extension == ".jpg" || extension == ".jpeg" || extension == ".png"
+                                        ? (dotIndex > 0 ? slideUrl.Substring(0, dotIndex) + "-thumb.jpg" : null)
+                                        : null;
                                     <li class="list-group-item">
+                                        @if (!string.IsNullOrWhiteSpace(thumbnailUrl))
+                                        {
+                                            <a href="@slideUrl" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
+                                                <img src="@thumbnailUrl"
+                                                     alt="Slide thumbnail"
+                                                     style="max-width: 180px; max-height: 120px; object-fit: cover; display: block; margin-bottom: 8px;"
+                                                     loading="lazy" />
+                                                <span>Slide @(i + 1) (@label)</span>
+                                            </a>
+                                        }
+                                        else
+                                        {
                                         <a href="@slideUrl" target="_blank" rel="noopener noreferrer">
                                             Slide @(i + 1) (@label)
                                         </a>
+                                        }
                                     </li>
                                 }
                             </ul>
