@@ -75,10 +75,10 @@ namespace ConferenceHub.Controllers
 
             await _dataService.AddRegistrationAsync(registration);
 
-            // Call Azure Function to send confirmation email
-            await SendConfirmationEmailAsync(session, attendeeName, attendeeEmail);
-
             TempData["Success"] = "Successfully registered for the session!";
+
+            // Call Azure Function at the end of registration flow
+            await SendConfirmationEmailAsync(session, attendeeName, attendeeEmail);
 
             return RedirectToAction(nameof(Details), new { id = sessionId });
         }

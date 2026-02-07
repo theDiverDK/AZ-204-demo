@@ -3,54 +3,98 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
-# shellcheck source=/dev/null
-source "$repo_root/tools/common.sh"
-
-random="${random:-49152}"
-location="${location:-swedencentral}"
-resource_group_name="${resource_group_name:-rg-conferencehub}"
-app_service_plan_name="${app_service_plan_name:-plan-conferencehub}"
-web_app_name="${web_app_name:-app-conferencehub-${random}}"
-app_service_plan_sku="${app_service_plan_sku:-P0V3}"
-web_runtime="${web_runtime:-DOTNETCORE:9.0}"
-storage_account_name="${storage_account_name:-stconferencehub${random}}"
-function_app_name="${function_app_name:-func-conferencehub-${random}}"
-function_runtime="${function_runtime:-node}"
-function_runtime_version="${function_runtime_version:-20}"
+source "$repo_root/tools/variables.sh"
 
 project_dir="$repo_root/ConferenceHub"
-publish_dir="$project_dir/publish"
+web_publish_dir="$project_dir/publish"
 web_package_path="$project_dir/app.zip"
-functions_dir="$script_dir/functions"
-functions_package_path="$script_dir/functions.zip"
+
+functions_project_path="$repo_root/$functions_project_dir/$functions_project_name.csproj"
+functions_publish_path="$repo_root/$functions_publish_dir"
+functions_zip_path="$repo_root/$functions_package_path"
+
 functions_base_url="https://${function_app_name}.azurewebsites.net"
 functions_send_url="${functions_base_url}/api/SendConfirmation"
+function_key=""
 
-require_base_tools
-require_az_login
+# LP2 assumes LP1 already created RG/App Service Plan/Web App.
+# Only create new Function resources, then update/deploy existing apps.
+az storage account create \
+  --name "$storage_account_name" \
+  --resource-group "$resource_group_name" \
+  --location "$location" \
+  --sku Standard_LRS \
+  --kind StorageV2 \
+  --min-tls-version TLS1_2
 
-ensure_resource_group "$resource_group_name" "$location"
-ensure_app_service_plan "$app_service_plan_name" "$resource_group_name" "$location" "$app_service_plan_sku"
-ensure_webapp "$web_app_name" "$resource_group_name" "$app_service_plan_name" "$web_runtime"
-ensure_storage_account "$storage_account_name" "$resource_group_name" "$location" Standard_LRS
-ensure_function_app "$function_app_name" "$resource_group_name" "$location" "$storage_account_name" "$function_runtime" "$function_runtime_version"
+az functionapp create \
+  --name "$function_app_name" \
+  --resource-group "$resource_group_name" \
+  --consumption-plan-location "$location" \
+  --storage-account "$storage_account_name" \
+  --functions-version 4 \
+  --runtime "$function_runtime" \
+  --runtime-version "$function_runtime_version"
 
-set_functionapp_settings "$resource_group_name" "$function_app_name" \
-  AzureWebJobsFeatureFlags=EnableWorkerIndexing
+az functionapp config set \
+  --resource-group "$resource_group_name" \
+  --name "$function_app_name" \
+  --min-tls-version 1.2
 
-zip_directory "$functions_dir" "$functions_package_path"
-deploy_functionapp_zip "$resource_group_name" "$function_app_name" "$functions_package_path"
+az webapp config set \
+  --resource-group "$resource_group_name" \
+  --name "$web_app_name" \
+  --min-tls-version 1.2
 
-set_webapp_settings "$resource_group_name" "$web_app_name" \
+az functionapp config appsettings set \
+  --resource-group "$resource_group_name" \
+  --name "$function_app_name" \
+  --settings \
+  FUNCTIONS_WORKER_RUNTIME="$function_worker_runtime" \
+  CONFIRMATION_SENDER_EMAIL="$confirmation_sender_email"
+
+# --------------------
+
+dotnet publish "$functions_project_path" -c Release -o "$functions_publish_path"
+
+rm -f "$functions_zip_path"
+(cd "$functions_publish_path" && zip -qr "$functions_zip_path" .)
+
+az functionapp deployment source config-zip \
+  --resource-group "$resource_group_name" \
+  --name "$function_app_name" \
+  --src "$functions_zip_path"
+
+function_key="$(az functionapp keys list \
+  --resource-group "$resource_group_name" \
+  --name "$function_app_name" \
+  --query "functionKeys.${function_key_name}" \
+  -o tsv)"
+
+az webapp config appsettings set \
+  --resource-group "$resource_group_name" \
+  --name "$web_app_name" \
+  --settings \
   ASPNETCORE_ENVIRONMENT=Production \
   WEBSITE_RUN_FROM_PACKAGE=1 \
   API_MODE=functions \
   FUNCTIONS_BASE_URL="$functions_base_url" \
   AzureFunctions__SendConfirmationUrl="$functions_send_url" \
-  AzureFunctions__FunctionKey=
+  AzureFunctions__FunctionKey="$function_key"
 
-publish_conferencehub "$project_dir" "$publish_dir"
-zip_directory "$publish_dir" "$web_package_path"
-deploy_webapp_zip "$resource_group_name" "$web_app_name" "$web_package_path"
+# --------------------
 
-browse_webapp "$resource_group_name" "$web_app_name"
+dotnet publish "$project_dir/ConferenceHub.csproj" -c Release -o "$web_publish_dir"
+
+rm -f "$web_package_path"
+(cd "$web_publish_dir" && zip -qr "$web_package_path" .)
+
+az webapp deploy \
+  --resource-group "$resource_group_name" \
+  --name "$web_app_name" \
+  --src-path "$web_package_path" \
+  --type zip
+
+az webapp browse \
+  --resource-group "$resource_group_name" \
+  --name "$web_app_name"
