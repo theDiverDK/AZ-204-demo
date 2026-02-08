@@ -17,8 +17,8 @@ This repository is organized as progressive learning paths. You run each path fr
 Clone once, then switch branches as you progress.
 
 ```bash
-git clone https://github.com/theDiverDK/AZ-204-Demo-V2.git
-cd AZ-204-Demo-V2
+git clone https://github.com/theDiverDK/AZ-204-Demo.git
+cd AZ-204-Demo
 ```
 
 Run learning paths in this order:

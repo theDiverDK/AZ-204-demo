@@ -5,8 +5,8 @@ This guide is for running the AZ-204 demo end-to-end in class.
 ## 1) Clone and Prepare
 
 ```bash
-git clone https://github.com/theDiverDK/AZ-204-Demo-V2.git
-cd AZ-204-Demo-V2
+git clone https://github.com/theDiverDK/AZ-204-Demo.git
+cd AZ-204-Demo
 ```
 
 Prerequisites:
