@@ -14,6 +14,25 @@ $web_package_path = "$repo_root/.deploy/lp11/web/app.zip"
 $functions_project_path = "$repo_root/$functions_project_dir/$functions_project_name.csproj"
 $functions_publish_path = "$repo_root/.deploy/lp11/functions/publish"
 $functions_zip_path = "$repo_root/.deploy/lp11/functions/functions.zip"
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+function New-ZipFromDirectory {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceDirectory,
+        [Parameter(Mandatory = $true)][string]$DestinationZipPath
+    )
+
+    if (Test-Path -LiteralPath $DestinationZipPath) {
+        Remove-Item -LiteralPath $DestinationZipPath -Force
+    }
+
+    [System.IO.Compression.ZipFile]::CreateFromDirectory(
+        $SourceDirectory,
+        $DestinationZipPath,
+        [System.IO.Compression.CompressionLevel]::Optimal,
+        $false
+    )
+}
 if (-not [string]::IsNullOrEmpty($app_insights_component_name)) {
     $app_insights_name = "$app_insights_component_name"
 } else {
@@ -42,26 +61,12 @@ if (-not [string]::IsNullOrEmpty($container_app_exists)) {
 if (Test-Path "$functions_publish_path") { Remove-Item -Recurse -Force "$functions_publish_path" }
 New-Item -ItemType Directory -Path "$functions_publish_path" -Force | Out-Null
 dotnet publish "$functions_project_path" -c Release -o "$functions_publish_path"
-if (Test-Path "$functions_zip_path") { Remove-Item -Force "$functions_zip_path" }
-Push-Location "$functions_publish_path"
-try {
-    if (Test-Path "$functions_zip_path") { Remove-Item -Force "$functions_zip_path" }
-    Compress-Archive -Path (Join-Path "$functions_publish_path" '*') -DestinationPath "$functions_zip_path" -Force
-} finally {
-    Pop-Location
-}
+New-ZipFromDirectory -SourceDirectory "$functions_publish_path" -DestinationZipPath "$functions_zip_path"
 az functionapp deployment source config-zip  --resource-group "$resource_group_name"  --name "$function_app_name"  --src "$functions_zip_path"
 if (Test-Path "$web_publish_dir") { Remove-Item -Recurse -Force "$web_publish_dir" }
 New-Item -ItemType Directory -Path "$web_publish_dir" -Force | Out-Null
 dotnet publish "$project_dir/ConferenceHub.csproj" -c Release -o "$web_publish_dir"
-if (Test-Path "$web_package_path") { Remove-Item -Force "$web_package_path" }
-Push-Location "$web_publish_dir"
-try {
-    if (Test-Path "$web_package_path") { Remove-Item -Force "$web_package_path" }
-    Compress-Archive -Path (Join-Path "$web_publish_dir" '*') -DestinationPath "$web_package_path" -Force
-} finally {
-    Pop-Location
-}
+New-ZipFromDirectory -SourceDirectory "$web_publish_dir" -DestinationZipPath "$web_package_path"
 az webapp deploy  --resource-group "$resource_group_name"  --name "$web_app_name"  --src-path "$web_package_path"  --type zip
 az functionapp restart  --resource-group "$resource_group_name"  --name "$function_app_name"
 az webapp restart  --resource-group "$resource_group_name"  --name "$web_app_name"
