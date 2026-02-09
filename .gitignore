@@ -7,3 +7,4 @@ resume
 **/bin/
 **/obj/
 *.dll
+.zip
