@@ -20,6 +20,7 @@ run_lp() {
   echo "========== Running ${branch} (${folder}) =========="
 
   git switch "$branch" || git switch --track "origin/$branch"
+  git pull --ff-only origin "$branch"
 
   clean_artifacts
 
