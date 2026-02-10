@@ -20,6 +20,7 @@ If you find problems or improvement opportunities, please:
 - .NET SDK 9
 - Azure CLI (`az`) logged in
 - Bash (macOS/Linux)
+- Docker (required for LP5 `lp/05-container`, and Docker must be running)
 
 ## Repository Layout
 - `ConferenceHub/`: shared ASP.NET Core web app used across all LPs.
